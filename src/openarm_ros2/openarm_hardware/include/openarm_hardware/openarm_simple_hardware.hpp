@@ -28,6 +28,7 @@
 #include "openarm_hardware/visibility_control.h"
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/state.hpp"
+#include "openarm_hardware/dynamics.hpp"
 
 namespace openarm_hardware {
 
@@ -75,6 +76,12 @@ class OpenArmHW : public hardware_interface::SystemInterface {
       const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
  private:
+
+  // Gravity
+  std::unique_ptr<Dynamics> arm_dynamics_;
+  std::vector<double> grav_torques_;
+  std::string urdf_path_;
+
   // V10 default configuration
   static constexpr size_t ARM_DOF = 7;
   static constexpr bool ENABLE_GRIPPER = true;

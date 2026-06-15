@@ -43,6 +43,7 @@ limitations under the License.
             <param name="hand">${hand}</param>
             <param name="can_fd">${can_fd}</param>
             <param name="ee_type">${ee_type}</param>
+            <param name="urdf_path">(find openarm_description)/assets/robot/openarm_v1.0/urdf/openarm_v10.urdf</param>
             <param name="kp1">${control_gains['joint1']['kp']}</param>
             <param name="kp2">${control_gains['joint2']['kp']}</param>
             <param name="kp3">${control_gains['joint3']['kp']}</param>

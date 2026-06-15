@@ -134,6 +134,32 @@ hardware_interface::CallbackReturn OpenArmHW::on_init(
   // Generate joint names based on arm prefix
   generate_joint_names();
 
+  //Gravity
+  auto it_urdf = info.hardware_parameters.find("urdf_path");
+  if (it_urdf != info.hardware_parameters.end()) {
+      urdf_path_ = it_urdf->second;
+  } else {
+      RCLCPP_ERROR(rclcpp::get_logger("OpenArmHW"), "Invalid 'urdf_path' parameter in ros2_control xacro!");
+      return CallbackReturn::ERROR;
+  }
+
+  std::string root_link = "openarm_body_link0";
+  std::string leaf_link = "openarm_right_hand";
+  if (arm_prefix_ == "left_") {
+      leaf_link = "openarm_left_hand";
+  } else if (arm_prefix_ == "right_") {
+      leaf_link = "openarm_right_hand";
+  }
+  RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"), "Initializing Dynamics with URDF: %s", urdf_path_.c_str());
+
+  arm_dynamics_ = std::make_unique<Dynamics>(urdf_path_, root_link, leaf_link);
+  if (!arm_dynamics_->Init()) {
+      RCLCPP_ERROR(rclcpp::get_logger("OpenArmHW"), "Failed to initialize Dynamics KDL. Check URDF path!");
+      return CallbackReturn::ERROR;
+  }
+
+  grav_torques_.resize(ARM_DOF, 0.0);
+
   // Validate joint count (7 arm joints + optional gripper)
   size_t expected_joints = ARM_DOF + (hand_ ? 1 : 0);
   if (joint_names_.size() != expected_joints) {
@@ -284,12 +310,29 @@ hardware_interface::return_type OpenArmHW::read(
 
 hardware_interface::return_type OpenArmHW::write(
     const rclcpp::Time& /*time*/, const rclcpp::Duration& /*period*/) {
-  // Control arm motors with MIT control
+
+  //Gravity
+  arm_dynamics_->GetGravity(pos_states_.data(), grav_torques_.data());
+
   std::vector<openarm::damiao_motor::MITParam> arm_params;
   for (size_t i = 0; i < ARM_DOF; ++i) {
-    arm_params.push_back(
-        {kp_[i], kd_[i], pos_commands_[i], vel_commands_[i], tau_commands_[i]});
+    double total_tau_feedforward = tau_commands_[i] + grav_torques_[i];
+    arm_params.push_back({
+        kp_[i],
+        kd_[i],
+        pos_commands_[i],
+        vel_commands_[i],
+        total_tau_feedforward
+    });
   }
+
+  // Control arm motors with MIT control
+//   std::vector<openarm::damiao_motor::MITParam> arm_params;
+//   for (size_t i = 0; i < ARM_DOF; ++i) {
+//     arm_params.push_back(
+//         {kp_[i], kd_[i], pos_commands_[i], vel_commands_[i], tau_commands_[i]});
+//   }
+
   openarm_->get_arm().mit_control_all(arm_params);
   // Control gripper if enabled
   if (hand_ && joint_names_.size() > ARM_DOF) {
