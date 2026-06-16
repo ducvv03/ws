@@ -332,7 +332,7 @@ class MoveDualArmHybrid(Node):
             if not rclpy.ok(): break
             self.get_logger().info(f"\n--- Planning {i + 1}/{len(self.left_targets)} ---")
 
-            # 1. Phân tách Tọa độ & Tag
+            # 1. Split Tag
             t_left, tag_l = self.parse_target(self.left_targets[i])
             t_right, tag_r = self.parse_target(self.right_targets[i])
             tag = tag_l or tag_r
