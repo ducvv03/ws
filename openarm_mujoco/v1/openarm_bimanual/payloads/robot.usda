@@ -1,0 +1,410 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "MuJoCo USD Converter v0.2.0"
+    }
+    defaultPrim = "openarm"
+    doc = """Generated from Composed Stage of root layer /tmp/tmpbe4ewwhh/openarm.usdc
+
+
+Generated from Composed Stage of root layer /tmp/mjcf_import_openarm_bimanual_0l1cemo4/usdex_openarm_bimanual/openarm.usdc
+
+
+Generated from Composed Stage of root layer /tmp/mjcf_import_openarm_bimanual_0l1cemo4/temp_openarm_bimanual/openarm_bimanual.usd
+"""
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+over "openarm" (
+    prepend apiSchemas = ["IsaacRobotAPI"]
+)
+{
+    prepend rel isaac:physics:robotJoints = [
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_joint1>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_joint2>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_joint3>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_joint4>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_joint5>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_joint6>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_joint7>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_tcp/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_hand_tcp/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_right_finger/openarm_left_finger_joint1>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_left_finger/openarm_left_finger_joint2>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_joint1>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_joint2>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_joint3>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_joint4>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_joint5>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_joint6>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_joint7>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_tcp/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_hand_tcp/PhysicsFixedJoint>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_right_finger/openarm_right_finger_joint1>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_left_finger/openarm_right_finger_joint2>,
+    ]
+    prepend rel isaac:physics:robotLinks = [
+        </openarm/Geometry/openarm_body_link0>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_tcp>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_hand_tcp>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_right_finger>,
+        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_left_finger>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_tcp>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_hand_tcp>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_right_finger>,
+        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_left_finger>,
+    ]
+    token isaac:robotType = "Default"
+
+    over "Geometry"
+    {
+        over "openarm_body_link0" (
+            prepend apiSchemas = ["IsaacLinkAPI"]
+        )
+        {
+            over "openarm_left_link0" (
+                prepend apiSchemas = ["IsaacLinkAPI"]
+            )
+            {
+                over "openarm_left_link1" (
+                    prepend apiSchemas = ["IsaacLinkAPI"]
+                )
+                {
+                    over "openarm_left_link2" (
+                        prepend apiSchemas = ["IsaacLinkAPI"]
+                    )
+                    {
+                        over "openarm_left_link3" (
+                            prepend apiSchemas = ["IsaacLinkAPI"]
+                        )
+                        {
+                            over "openarm_left_link4" (
+                                prepend apiSchemas = ["IsaacLinkAPI"]
+                            )
+                            {
+                                over "openarm_left_link5" (
+                                    prepend apiSchemas = ["IsaacLinkAPI"]
+                                )
+                                {
+                                    over "openarm_left_link6" (
+                                        prepend apiSchemas = ["IsaacLinkAPI"]
+                                    )
+                                    {
+                                        over "openarm_left_link7" (
+                                            prepend apiSchemas = ["IsaacLinkAPI"]
+                                        )
+                                        {
+                                            over "openarm_left_tcp" (
+                                                prepend apiSchemas = ["IsaacLinkAPI"]
+                                            )
+                                            {
+                                                over "PhysicsFixedJoint" (
+                                                    prepend apiSchemas = ["IsaacJointAPI"]
+                                                )
+                                                {
+                                                }
+                                            }
+
+                                            over "openarm_left_link8" (
+                                                prepend apiSchemas = ["IsaacLinkAPI"]
+                                            )
+                                            {
+                                                over "openarm_left_hand" (
+                                                    prepend apiSchemas = ["IsaacLinkAPI"]
+                                                )
+                                                {
+                                                    over "openarm_left_hand_tcp" (
+                                                        prepend apiSchemas = ["IsaacLinkAPI"]
+                                                    )
+                                                    {
+                                                        over "PhysicsFixedJoint" (
+                                                            prepend apiSchemas = ["IsaacJointAPI"]
+                                                        )
+                                                        {
+                                                        }
+                                                    }
+
+                                                    over "openarm_left_right_finger" (
+                                                        prepend apiSchemas = ["IsaacLinkAPI"]
+                                                    )
+                                                    {
+                                                        over "openarm_left_finger_joint1" (
+                                                            prepend apiSchemas = ["IsaacJointAPI"]
+                                                        )
+                                                        {
+                                                        }
+                                                    }
+
+                                                    over "openarm_left_left_finger" (
+                                                        prepend apiSchemas = ["IsaacLinkAPI"]
+                                                    )
+                                                    {
+                                                        over "openarm_left_finger_joint2" (
+                                                            prepend apiSchemas = ["IsaacJointAPI"]
+                                                        )
+                                                        {
+                                                        }
+                                                    }
+
+                                                    over "PhysicsFixedJoint" (
+                                                        prepend apiSchemas = ["IsaacJointAPI"]
+                                                    )
+                                                    {
+                                                    }
+                                                }
+
+                                                over "PhysicsFixedJoint" (
+                                                    prepend apiSchemas = ["IsaacJointAPI"]
+                                                )
+                                                {
+                                                }
+                                            }
+
+                                            over "openarm_left_joint7" (
+                                                prepend apiSchemas = ["IsaacJointAPI"]
+                                            )
+                                            {
+                                            }
+                                        }
+
+                                        over "openarm_left_joint6" (
+                                            prepend apiSchemas = ["IsaacJointAPI"]
+                                        )
+                                        {
+                                        }
+                                    }
+
+                                    over "openarm_left_joint5" (
+                                        prepend apiSchemas = ["IsaacJointAPI"]
+                                    )
+                                    {
+                                    }
+                                }
+
+                                over "openarm_left_joint4" (
+                                    prepend apiSchemas = ["IsaacJointAPI"]
+                                )
+                                {
+                                }
+                            }
+
+                            over "openarm_left_joint3" (
+                                prepend apiSchemas = ["IsaacJointAPI"]
+                            )
+                            {
+                            }
+                        }
+
+                        over "openarm_left_joint2" (
+                            prepend apiSchemas = ["IsaacJointAPI"]
+                        )
+                        {
+                        }
+                    }
+
+                    over "openarm_left_joint1" (
+                        prepend apiSchemas = ["IsaacJointAPI"]
+                    )
+                    {
+                    }
+                }
+
+                over "PhysicsFixedJoint" (
+                    prepend apiSchemas = ["IsaacJointAPI"]
+                )
+                {
+                }
+            }
+
+            over "openarm_right_link0" (
+                prepend apiSchemas = ["IsaacLinkAPI"]
+            )
+            {
+                over "openarm_right_link1" (
+                    prepend apiSchemas = ["IsaacLinkAPI"]
+                )
+                {
+                    over "openarm_right_link2" (
+                        prepend apiSchemas = ["IsaacLinkAPI"]
+                    )
+                    {
+                        over "openarm_right_link3" (
+                            prepend apiSchemas = ["IsaacLinkAPI"]
+                        )
+                        {
+                            over "openarm_right_link4" (
+                                prepend apiSchemas = ["IsaacLinkAPI"]
+                            )
+                            {
+                                over "openarm_right_link5" (
+                                    prepend apiSchemas = ["IsaacLinkAPI"]
+                                )
+                                {
+                                    over "openarm_right_link6" (
+                                        prepend apiSchemas = ["IsaacLinkAPI"]
+                                    )
+                                    {
+                                        over "openarm_right_link7" (
+                                            prepend apiSchemas = ["IsaacLinkAPI"]
+                                        )
+                                        {
+                                            over "openarm_right_tcp" (
+                                                prepend apiSchemas = ["IsaacLinkAPI"]
+                                            )
+                                            {
+                                                over "PhysicsFixedJoint" (
+                                                    prepend apiSchemas = ["IsaacJointAPI"]
+                                                )
+                                                {
+                                                }
+                                            }
+
+                                            over "openarm_right_link8" (
+                                                prepend apiSchemas = ["IsaacLinkAPI"]
+                                            )
+                                            {
+                                                over "openarm_right_hand" (
+                                                    prepend apiSchemas = ["IsaacLinkAPI"]
+                                                )
+                                                {
+                                                    over "openarm_right_hand_tcp" (
+                                                        prepend apiSchemas = ["IsaacLinkAPI"]
+                                                    )
+                                                    {
+                                                        over "PhysicsFixedJoint" (
+                                                            prepend apiSchemas = ["IsaacJointAPI"]
+                                                        )
+                                                        {
+                                                        }
+                                                    }
+
+                                                    over "openarm_right_right_finger" (
+                                                        prepend apiSchemas = ["IsaacLinkAPI"]
+                                                    )
+                                                    {
+                                                        over "openarm_right_finger_joint1" (
+                                                            prepend apiSchemas = ["IsaacJointAPI"]
+                                                        )
+                                                        {
+                                                        }
+                                                    }
+
+                                                    over "openarm_right_left_finger" (
+                                                        prepend apiSchemas = ["IsaacLinkAPI"]
+                                                    )
+                                                    {
+                                                        over "openarm_right_finger_joint2" (
+                                                            prepend apiSchemas = ["IsaacJointAPI"]
+                                                        )
+                                                        {
+                                                        }
+                                                    }
+
+                                                    over "PhysicsFixedJoint" (
+                                                        prepend apiSchemas = ["IsaacJointAPI"]
+                                                    )
+                                                    {
+                                                    }
+                                                }
+
+                                                over "PhysicsFixedJoint" (
+                                                    prepend apiSchemas = ["IsaacJointAPI"]
+                                                )
+                                                {
+                                                }
+                                            }
+
+                                            over "openarm_right_joint7" (
+                                                prepend apiSchemas = ["IsaacJointAPI"]
+                                            )
+                                            {
+                                            }
+                                        }
+
+                                        over "openarm_right_joint6" (
+                                            prepend apiSchemas = ["IsaacJointAPI"]
+                                        )
+                                        {
+                                        }
+                                    }
+
+                                    over "openarm_right_joint5" (
+                                        prepend apiSchemas = ["IsaacJointAPI"]
+                                    )
+                                    {
+                                    }
+                                }
+
+                                over "openarm_right_joint4" (
+                                    prepend apiSchemas = ["IsaacJointAPI"]
+                                )
+                                {
+                                }
+                            }
+
+                            over "openarm_right_joint3" (
+                                prepend apiSchemas = ["IsaacJointAPI"]
+                            )
+                            {
+                            }
+                        }
+
+                        over "openarm_right_joint2" (
+                            prepend apiSchemas = ["IsaacJointAPI"]
+                        )
+                        {
+                        }
+                    }
+
+                    over "openarm_right_joint1" (
+                        prepend apiSchemas = ["IsaacJointAPI"]
+                    )
+                    {
+                    }
+                }
+
+                over "PhysicsFixedJoint" (
+                    prepend apiSchemas = ["IsaacJointAPI"]
+                )
+                {
+                }
+            }
+
+            over "PhysicsFixedJoint" (
+                prepend apiSchemas = ["IsaacJointAPI"]
+            )
+            {
+            }
+        }
+    }
+}
+

@@ -1,0 +1,51 @@
+nodes:
+  - id: udp-receiver
+    build: pip install git+https://github.com/enactic/dora-openarm-vr
+    path: dora-openarm-quest-receiver
+    args: "--host 0.0.0.0 --port 5006"
+    inputs:
+      tick: dora/timer/millis/2
+    outputs:
+      - pose_right
+      - trigger_right
+      - pose_left
+      - trigger_left
+      - joystick_y
+      - button_a
+      - button_b
+      - status
+
+  - id: mujoco-viewer
+    build: pip install git+https://github.com/enactic/dora-openarm-mujoco
+    path: dora-openarm-mujoco
+    args: "--xml ../../openarm_mujoco/v1/scene.xml --keyframe home --viewer --debug-frames "
+    inputs:
+      position_left:  ik/position_left
+      position_right: ik/position_right
+      pose_right:     udp-receiver/pose_right
+      pose_left:      udp-receiver/pose_left
+      joystick_y:     udp-receiver/joystick_y
+    outputs:
+      - status
+
+  - id: ik
+    build: pip install git+https://github.com/enactic/dora-openarm-kinematics
+    path: dora-openarm-ik
+    args: "--mode bimanual --xml ../../openarm_mujoco/v1/scene.xml --frame-right openarm_right_tcp --frame-left openarm_left_tcp --frame-type-right body --frame-type-left body --max-iters 10 --dt 0.1 --damping 0.1 --posture-cost 0.01 --lm-damping 0.01"
+    inputs:
+      tick: dora/timer/millis/2
+      target_right: udp-receiver/pose_right
+      target_left: udp-receiver/pose_left
+      trigger_right: udp-receiver/trigger_right
+      trigger_left: udp-receiver/trigger_left
+    outputs:
+      - position_left
+      - position_right
+
+  - id: dora-to-ros2
+    build: pip install -e ..
+    path: openarm-dora-ros2
+    inputs:
+      left_position: ik/position_left
+      right_position: ik/position_right
+

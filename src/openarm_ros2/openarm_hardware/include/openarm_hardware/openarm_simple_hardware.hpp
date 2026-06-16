@@ -29,6 +29,8 @@
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 #include "openarm_hardware/dynamics.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
+#include "rclcpp/rclcpp.hpp"
 
 namespace openarm_hardware {
 
@@ -77,6 +79,10 @@ class OpenArmHW : public hardware_interface::SystemInterface {
 
  private:
 
+  rclcpp::Node::SharedPtr telemetry_node_;
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr pub_states_up_;
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr pub_cmds_down_;
+  
   // Gravity
   std::unique_ptr<Dynamics> arm_dynamics_;
   std::vector<double> grav_torques_;

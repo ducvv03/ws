@@ -1,0 +1,824 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "MuJoCo USD Converter v0.2.0"
+    }
+    defaultPrim = "openarm"
+    doc = """Generated from Composed Stage of root layer /tmp/tmpbe4ewwhh/openarm.usdc
+
+
+Generated from Composed Stage of root layer /tmp/mjcf_import_openarm_bimanual_0l1cemo4/usdex_openarm_bimanual/openarm.usdc
+
+
+Generated from Composed Stage of root layer /tmp/mjcf_import_openarm_bimanual_0l1cemo4/temp_openarm_bimanual/openarm_bimanual.usd
+
+
+Generated from Composed Stage of root layer /home/workstation/pnk/openarm_mujoco/v1/openarm_bimanual/payloads/base.usd
+"""
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    upAxis = "Z"
+)
+
+over "openarm"
+{
+    over "Geometry"
+    {
+        over "openarm_body_link0" (
+            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsArticulationRootAPI", "NewtonArticulationRootAPI", "PhysicsFilteredPairsAPI"]
+        )
+        {
+            bool newton:selfCollisionEnabled = 0
+            point3f physics:centerOfMass = (0, 0, 0)
+            float3 physics:diagonalInertia = (1.653, 1.653, 0.051)
+            rel physics:filteredPairs = [
+                </openarm/Geometry/openarm_body_link0/openarm_left_link0>,
+                </openarm/Geometry/openarm_body_link0/openarm_right_link0>,
+            ]
+            float physics:mass = 13.89
+            quatf physics:principalAxes = (1, 0, 0, 0)
+
+            over "openarm_left_link0" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (-0.00094833627, 0.0001580207, 0.030768603)
+                float3 physics:diagonalInertia = (0.001128, 0.000962, 0.00147)
+                rel physics:filteredPairs = [
+                    </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1>,
+                    </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2>,
+                    </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3>,
+                ]
+                float physics:mass = 1.1432285
+                quatf physics:principalAxes = (1, 0, 0, 0)
+
+                over "openarm_left_link1" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                )
+                {
+                    point3f physics:centerOfMass = (0.0011467658, 0.000033199878, 0.053952843)
+                    float3 physics:diagonalInertia = (0.001567, 0.001273, 0.001016)
+                    rel physics:filteredPairs = [
+                        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2>,
+                        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3>,
+                    ]
+                    float physics:mass = 1.1416684
+                    quatf physics:principalAxes = (1, 0, 0, 0)
+
+                    over "openarm_left_link2" (
+                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                    )
+                    {
+                        point3f physics:centerOfMass = (0.008396292, -2.0145102e-8, 0.03256649)
+                        float3 physics:diagonalInertia = (0.000359, 0.000376, 0.000232)
+                        rel physics:filteredPairs = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3>
+                        float physics:mass = 0.27750927
+                        quatf physics:principalAxes = (1, 0, 0, 0)
+
+                        over "openarm_left_link3" (
+                            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                        )
+                        {
+                            point3f physics:centerOfMass = (-0.002104752, 0.00055490853, 0.088474706)
+                            float3 physics:diagonalInertia = (0.004372, 0.004319, 0.000661)
+                            rel physics:filteredPairs = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4>
+                            float physics:mass = 1.0738634
+                            quatf physics:principalAxes = (1, 0, 0, 0)
+
+                            over "openarm_left_link4" (
+                                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                            )
+                            {
+                                point3f physics:centerOfMass = (-0.002900683, -0.030305758, 0.06339637)
+                                float3 physics:diagonalInertia = (0.001577, 0.001346, 0.001104)
+                                rel physics:filteredPairs = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5>
+                                float physics:mass = 0.6348535
+                                quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                over "openarm_left_link5" (
+                                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                                )
+                                {
+                                    point3f physics:centerOfMass = (-0.0030496651, 0.0008866902, 0.043079805)
+                                    float3 physics:diagonalInertia = (0.000423, 0.000445, 0.000324)
+                                    rel physics:filteredPairs = [
+                                        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6>,
+                                        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7>,
+                                    ]
+                                    float physics:mass = 0.6156588
+                                    quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                    over "openarm_left_link6" (
+                                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                                    )
+                                    {
+                                        point3f physics:centerOfMass = (-0.03713659, 0.0003323053, -0.00009498375)
+                                        float3 physics:diagonalInertia = (0.000143, 0.000157, 0.000159)
+                                        rel physics:filteredPairs = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7>
+                                        float physics:mass = 0.47520277
+                                        quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                        over "openarm_left_link7" (
+                                            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                                        )
+                                        {
+                                            point3f physics:centerOfMass = (0.0000687551, -0.017661752, 0.066519454)
+                                            float3 physics:diagonalInertia = (0.000639, 0.000497, 0.000342)
+                                            float physics:mass = 0.46597713
+                                            quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                            over "openarm_left_tcp" (
+                                                prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+                                            )
+                                            {
+                                                def PhysicsFixedJoint "PhysicsFixedJoint"
+                                                {
+                                                    custom rel physics:body0
+                                                    prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7>
+                                                    custom rel physics:body1
+                                                    prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_tcp>
+                                                    point3f physics:localPos0 = (0, 2.7755576e-17, 0)
+                                                    point3f physics:localPos1 = (0, 0, 0)
+                                                    quatf physics:localRot0 = (-2.214786e-13, -1, 0, 0)
+                                                    quatf physics:localRot1 = (1, 0, 0, 0)
+                                                }
+                                            }
+
+                                            over "openarm_left_link8" (
+                                                prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+                                            )
+                                            {
+                                                over "openarm_left_hand" (
+                                                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                                                )
+                                                {
+                                                    point3f physics:centerOfMass = (0, 0.002, 0.01)
+                                                    float3 physics:diagonalInertia = (0.0001, 0.00025, 0.00017)
+                                                    rel physics:filteredPairs = [
+                                                        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_right_finger>,
+                                                        </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_left_finger>,
+                                                    ]
+                                                    float physics:mass = 0.15
+                                                    quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                                    over "openarm_left_hand_tcp" (
+                                                        prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+                                                    )
+                                                    {
+                                                        def PhysicsFixedJoint "PhysicsFixedJoint"
+                                                        {
+                                                            custom rel physics:body0
+                                                            prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand>
+                                                            custom rel physics:body1
+                                                            prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_hand_tcp>
+                                                            point3f physics:localPos0 = (0, 0, 0.08)
+                                                            point3f physics:localPos1 = (0, 0, 0)
+                                                            quatf physics:localRot0 = (1, 0, 0, 0)
+                                                            quatf physics:localRot1 = (1, 0, 0, 0)
+                                                        }
+                                                    }
+
+                                                    over "openarm_left_right_finger" (
+                                                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                                                    )
+                                                    {
+                                                        point3f physics:centerOfMass = (0.0064528, -0.01702, 0.0219685)
+                                                        float3 physics:diagonalInertia = (0.000002375, 0.000002375, 7.5e-7)
+                                                        float physics:mass = 0.036025453
+                                                        quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                                        def PhysicsPrismaticJoint "openarm_left_finger_joint1" (
+                                                            prepend apiSchemas = ["NewtonMimicAPI", "PhysicsDriveAPI:linear", "PhysicsJointStateAPI:linear"]
+                                                        )
+                                                        {
+                                                            float drive:linear:physics:maxForce = 333
+                                                            rel newton:mimicJoint = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_left_finger/openarm_left_finger_joint2>
+                                                            uniform token physics:axis = "Y"
+                                                            custom rel physics:body0
+                                                            prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand>
+                                                            custom rel physics:body1
+                                                            prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_right_finger>
+                                                            point3f physics:localPos0 = (0, 0, 0.015)
+                                                            point3f physics:localPos1 = (0, 0, 0)
+                                                            quatf physics:localRot0 = (0, -1, 0, 0)
+                                                            quatf physics:localRot1 = (0, -1, 0, 0)
+                                                            float physics:lowerLimit = 0
+                                                            float physics:upperLimit = 0.044
+                                                        }
+                                                    }
+
+                                                    over "openarm_left_left_finger" (
+                                                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                                                    )
+                                                    {
+                                                        point3f physics:centerOfMass = (0.0064528, 0.01702, 0.0219685)
+                                                        float3 physics:diagonalInertia = (0.000002375, 0.000002375, 7.5e-7)
+                                                        float physics:mass = 0.036025453
+                                                        quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                                        def PhysicsPrismaticJoint "openarm_left_finger_joint2" (
+                                                            prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysicsJointStateAPI:linear"]
+                                                        )
+                                                        {
+                                                            float drive:linear:physics:maxForce = 333
+                                                            uniform token physics:axis = "Y"
+                                                            custom rel physics:body0
+                                                            prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand>
+                                                            custom rel physics:body1
+                                                            prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand/openarm_left_left_finger>
+                                                            point3f physics:localPos0 = (0, 0.012, 0.015)
+                                                            point3f physics:localPos1 = (0, 0, 0)
+                                                            quatf physics:localRot0 = (1, 0, 0, 0)
+                                                            quatf physics:localRot1 = (1, 0, 0, 0)
+                                                            float physics:lowerLimit = 0
+                                                            float physics:upperLimit = 0.044
+                                                        }
+                                                    }
+
+                                                    def PhysicsFixedJoint "PhysicsFixedJoint"
+                                                    {
+                                                        custom rel physics:body0
+                                                        prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8>
+                                                        custom rel physics:body1
+                                                        prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8/openarm_left_hand>
+                                                        point3f physics:localPos0 = (0, -0.025, 0.1001)
+                                                        point3f physics:localPos1 = (0, 0, 0)
+                                                        quatf physics:localRot0 = (1, 0, 0, 0)
+                                                        quatf physics:localRot1 = (1, 0, 0, 0)
+                                                    }
+                                                }
+
+                                                def PhysicsFixedJoint "PhysicsFixedJoint"
+                                                {
+                                                    custom rel physics:body0
+                                                    prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7>
+                                                    custom rel physics:body1
+                                                    prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7/openarm_left_link8>
+                                                    point3f physics:localPos0 = (0.000001, 0.0205, 0)
+                                                    point3f physics:localPos1 = (0, 0, 0)
+                                                    quatf physics:localRot0 = (1, 0, 0, 0)
+                                                    quatf physics:localRot1 = (1, 0, 0, 0)
+                                                }
+                                            }
+
+                                            def PhysicsRevoluteJoint "openarm_left_joint7" (
+                                                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                                            )
+                                            {
+                                                float drive:angular:physics:maxForce = 7
+                                                uniform token physics:axis = "Y"
+                                                custom rel physics:body0
+                                                prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6>
+                                                custom rel physics:body1
+                                                prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6/openarm_left_link7>
+                                                point3f physics:localPos0 = (-0.0375, 2.7755576e-17, 0)
+                                                point3f physics:localPos1 = (0, 0, 0)
+                                                quatf physics:localRot0 = (0, -1, 0, 0)
+                                                quatf physics:localRot1 = (0, -1, 0, 0)
+                                                float physics:lowerLimit = -89.999985
+                                                float physics:upperLimit = 89.999985
+                                            }
+                                        }
+
+                                        def PhysicsRevoluteJoint "openarm_left_joint6" (
+                                            prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                                        )
+                                        {
+                                            float drive:angular:physics:maxForce = 7
+                                            uniform token physics:axis = "X"
+                                            custom rel physics:body0
+                                            prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5>
+                                            custom rel physics:body1
+                                            prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5/openarm_left_link6>
+                                            point3f physics:localPos0 = (0.0375, 2.7755576e-17, 0.1205)
+                                            point3f physics:localPos1 = (0, 0, 0)
+                                            quatf physics:localRot0 = (1, 0, 0, 0)
+                                            quatf physics:localRot1 = (1, 0, 0, 0)
+                                            float physics:lowerLimit = -44.999992
+                                            float physics:upperLimit = 44.999992
+                                        }
+                                    }
+
+                                    def PhysicsRevoluteJoint "openarm_left_joint5" (
+                                        prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                                    )
+                                    {
+                                        float drive:angular:physics:maxForce = 7
+                                        uniform token physics:axis = "Z"
+                                        custom rel physics:body0
+                                        prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4>
+                                        custom rel physics:body1
+                                        prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4/openarm_left_link5>
+                                        point3f physics:localPos0 = (0, -0.0315, 0.0955)
+                                        point3f physics:localPos1 = (0, 0, 0)
+                                        quatf physics:localRot0 = (1, 0, 0, 0)
+                                        quatf physics:localRot1 = (1, 0, 0, 0)
+                                        float physics:lowerLimit = -89.999985
+                                        float physics:upperLimit = 89.999985
+                                    }
+                                }
+
+                                def PhysicsRevoluteJoint "openarm_left_joint4" (
+                                    prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                                )
+                                {
+                                    float drive:angular:physics:maxForce = 27
+                                    uniform token physics:axis = "Y"
+                                    custom rel physics:body0
+                                    prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3>
+                                    custom rel physics:body1
+                                    prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3/openarm_left_link4>
+                                    point3f physics:localPos0 = (0, 0.0315, 0.15375)
+                                    point3f physics:localPos1 = (0, 0, 0)
+                                    quatf physics:localRot0 = (1, 0, 0, 0)
+                                    quatf physics:localRot1 = (1, 0, 0, 0)
+                                    float physics:lowerLimit = 0
+                                    float physics:upperLimit = 140
+                                }
+                            }
+
+                            def PhysicsRevoluteJoint "openarm_left_joint3" (
+                                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                            )
+                            {
+                                float drive:angular:physics:maxForce = 27
+                                uniform token physics:axis = "Z"
+                                custom rel physics:body0
+                                prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2>
+                                custom rel physics:body1
+                                prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2/openarm_left_link3>
+                                point3f physics:localPos0 = (0.0301, 2.7755576e-17, 0.06625)
+                                point3f physics:localPos1 = (0, 0, 0)
+                                quatf physics:localRot0 = (1, 0, 0, 0)
+                                quatf physics:localRot1 = (1, 0, 0, 0)
+                                float physics:lowerLimit = -89.999985
+                                float physics:upperLimit = 89.999985
+                            }
+                        }
+
+                        def PhysicsRevoluteJoint "openarm_left_joint2" (
+                            prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                        )
+                        {
+                            float drive:angular:physics:maxForce = 40
+                            uniform token physics:axis = "X"
+                            custom rel physics:body0
+                            prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1>
+                            custom rel physics:body1
+                            prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1/openarm_left_link2>
+                            point3f physics:localPos0 = (-0.0301, 0, 0.06)
+                            point3f physics:localPos1 = (0, 0, 0)
+                            quatf physics:localRot0 = (-0, 0, -0.7071068, 0.7071067)
+                            quatf physics:localRot1 = (0, 0, -1, 0)
+                            float physics:lowerLimit = -189.99998
+                            float physics:upperLimit = 9.999986
+                        }
+                    }
+
+                    def PhysicsRevoluteJoint "openarm_left_joint1" (
+                        prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                    )
+                    {
+                        float drive:angular:physics:maxForce = 40
+                        uniform token physics:axis = "Z"
+                        custom rel physics:body0
+                        prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_left_link0>
+                        custom rel physics:body1
+                        prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0/openarm_left_link1>
+                        point3f physics:localPos0 = (0, 0, 0.0625)
+                        point3f physics:localPos1 = (0, 0, 0)
+                        quatf physics:localRot0 = (1, 0, 0, 0)
+                        quatf physics:localRot1 = (1, 0, 0, 0)
+                        float physics:lowerLimit = -200.00003
+                        float physics:upperLimit = 79.99998
+                    }
+                }
+
+                def PhysicsFixedJoint "PhysicsFixedJoint"
+                {
+                    custom rel physics:body0
+                    prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0>
+                    custom rel physics:body1
+                    prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_left_link0>
+                    point3f physics:localPos0 = (0, 0.031, 0.698)
+                    point3f physics:localPos1 = (0, 0, 0)
+                    quatf physics:localRot0 = (-0.70710546, 0.7071081, 0, 0)
+                    quatf physics:localRot1 = (1, 0, 0, 0)
+                }
+            }
+
+            over "openarm_right_link0" (
+                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+            )
+            {
+                point3f physics:centerOfMass = (-0.00094833627, 0.0001580207, 0.030768603)
+                float3 physics:diagonalInertia = (0.001128, 0.000962, 0.00147)
+                rel physics:filteredPairs = [
+                    </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1>,
+                    </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2>,
+                    </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3>,
+                ]
+                float physics:mass = 1.1432285
+                quatf physics:principalAxes = (1, 0, 0, 0)
+
+                over "openarm_right_link1" (
+                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                )
+                {
+                    point3f physics:centerOfMass = (0.0011467658, 0.000033199878, 0.053952843)
+                    float3 physics:diagonalInertia = (0.001567, 0.001273, 0.001016)
+                    rel physics:filteredPairs = [
+                        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2>,
+                        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3>,
+                    ]
+                    float physics:mass = 1.1416684
+                    quatf physics:principalAxes = (1, 0, 0, 0)
+
+                    over "openarm_right_link2" (
+                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                    )
+                    {
+                        point3f physics:centerOfMass = (0.008396292, -2.0145102e-8, 0.03256649)
+                        float3 physics:diagonalInertia = (0.000359, 0.000376, 0.000232)
+                        rel physics:filteredPairs = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3>
+                        float physics:mass = 0.27750927
+                        quatf physics:principalAxes = (1, 0, 0, 0)
+
+                        over "openarm_right_link3" (
+                            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                        )
+                        {
+                            point3f physics:centerOfMass = (-0.002104752, 0.00055490853, 0.088474706)
+                            float3 physics:diagonalInertia = (0.004372, 0.004319, 0.000661)
+                            rel physics:filteredPairs = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4>
+                            float physics:mass = 1.0738634
+                            quatf physics:principalAxes = (1, 0, 0, 0)
+
+                            over "openarm_right_link4" (
+                                prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                            )
+                            {
+                                point3f physics:centerOfMass = (-0.002900683, -0.030305758, 0.06339637)
+                                float3 physics:diagonalInertia = (0.001577, 0.001346, 0.001104)
+                                rel physics:filteredPairs = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5>
+                                float physics:mass = 0.6348535
+                                quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                over "openarm_right_link5" (
+                                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                                )
+                                {
+                                    point3f physics:centerOfMass = (-0.0030496651, 0.0008866902, 0.043079805)
+                                    float3 physics:diagonalInertia = (0.000423, 0.000445, 0.000324)
+                                    rel physics:filteredPairs = [
+                                        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6>,
+                                        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7>,
+                                    ]
+                                    float physics:mass = 0.6156588
+                                    quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                    over "openarm_right_link6" (
+                                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                                    )
+                                    {
+                                        point3f physics:centerOfMass = (-0.03713659, 0.0003323053, -0.00009498375)
+                                        float3 physics:diagonalInertia = (0.000143, 0.000157, 0.000159)
+                                        rel physics:filteredPairs = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7>
+                                        float physics:mass = 0.47520277
+                                        quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                        over "openarm_right_link7" (
+                                            prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                                        )
+                                        {
+                                            point3f physics:centerOfMass = (0.0000687551, -0.017661752, 0.066519454)
+                                            float3 physics:diagonalInertia = (0.000639, 0.000497, 0.000342)
+                                            float physics:mass = 0.46597713
+                                            quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                            over "openarm_right_tcp" (
+                                                prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+                                            )
+                                            {
+                                                def PhysicsFixedJoint "PhysicsFixedJoint"
+                                                {
+                                                    custom rel physics:body0
+                                                    prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7>
+                                                    custom rel physics:body1
+                                                    prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_tcp>
+                                                    point3f physics:localPos0 = (0, -2.7755576e-17, 0)
+                                                    point3f physics:localPos1 = (0, 0, 0)
+                                                    quatf physics:localRot0 = (2.2115697e-13, -1, 0, 0)
+                                                    quatf physics:localRot1 = (1, 0, 0, 0)
+                                                }
+                                            }
+
+                                            over "openarm_right_link8" (
+                                                prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+                                            )
+                                            {
+                                                over "openarm_right_hand" (
+                                                    prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "PhysicsFilteredPairsAPI"]
+                                                )
+                                                {
+                                                    point3f physics:centerOfMass = (0, 0.002, 0.01)
+                                                    float3 physics:diagonalInertia = (0.0001, 0.00025, 0.00017)
+                                                    rel physics:filteredPairs = [
+                                                        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_right_finger>,
+                                                        </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_left_finger>,
+                                                    ]
+                                                    float physics:mass = 0.15
+                                                    quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                                    over "openarm_right_hand_tcp" (
+                                                        prepend apiSchemas = ["PhysicsRigidBodyAPI"]
+                                                    )
+                                                    {
+                                                        def PhysicsFixedJoint "PhysicsFixedJoint"
+                                                        {
+                                                            custom rel physics:body0
+                                                            prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand>
+                                                            custom rel physics:body1
+                                                            prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_hand_tcp>
+                                                            point3f physics:localPos0 = (0, 0, 0.08)
+                                                            point3f physics:localPos1 = (0, 0, 0)
+                                                            quatf physics:localRot0 = (1, 0, 0, 0)
+                                                            quatf physics:localRot1 = (1, 0, 0, 0)
+                                                        }
+                                                    }
+
+                                                    over "openarm_right_right_finger" (
+                                                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                                                    )
+                                                    {
+                                                        point3f physics:centerOfMass = (0.0064528, -0.01702, 0.0219685)
+                                                        float3 physics:diagonalInertia = (0.000002375, 0.000002375, 7.5e-7)
+                                                        float physics:mass = 0.036025453
+                                                        quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                                        def PhysicsPrismaticJoint "openarm_right_finger_joint1" (
+                                                            prepend apiSchemas = ["NewtonMimicAPI", "PhysicsDriveAPI:linear", "PhysicsJointStateAPI:linear"]
+                                                        )
+                                                        {
+                                                            float drive:linear:physics:maxForce = 333
+                                                            rel newton:mimicJoint = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_left_finger/openarm_right_finger_joint2>
+                                                            uniform token physics:axis = "Y"
+                                                            custom rel physics:body0
+                                                            prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand>
+                                                            custom rel physics:body1
+                                                            prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_right_finger>
+                                                            point3f physics:localPos0 = (0, 0, 0.015)
+                                                            point3f physics:localPos1 = (0, 0, 0)
+                                                            quatf physics:localRot0 = (0, -1, 0, 0)
+                                                            quatf physics:localRot1 = (0, -1, 0, 0)
+                                                            float physics:lowerLimit = 0
+                                                            float physics:upperLimit = 0.044
+                                                        }
+                                                    }
+
+                                                    over "openarm_right_left_finger" (
+                                                        prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI"]
+                                                    )
+                                                    {
+                                                        point3f physics:centerOfMass = (0.0064528, 0.01702, 0.0219685)
+                                                        float3 physics:diagonalInertia = (0.000002375, 0.000002375, 7.5e-7)
+                                                        float physics:mass = 0.036025453
+                                                        quatf physics:principalAxes = (1, 0, 0, 0)
+
+                                                        def PhysicsPrismaticJoint "openarm_right_finger_joint2" (
+                                                            prepend apiSchemas = ["PhysicsDriveAPI:linear", "PhysicsJointStateAPI:linear"]
+                                                        )
+                                                        {
+                                                            float drive:linear:physics:maxForce = 333
+                                                            uniform token physics:axis = "Y"
+                                                            custom rel physics:body0
+                                                            prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand>
+                                                            custom rel physics:body1
+                                                            prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand/openarm_right_left_finger>
+                                                            point3f physics:localPos0 = (0, 0.012, 0.015)
+                                                            point3f physics:localPos1 = (0, 0, 0)
+                                                            quatf physics:localRot0 = (1, 0, 0, 0)
+                                                            quatf physics:localRot1 = (1, 0, 0, 0)
+                                                            float physics:lowerLimit = 0
+                                                            float physics:upperLimit = 0.044
+                                                        }
+                                                    }
+
+                                                    def PhysicsFixedJoint "PhysicsFixedJoint"
+                                                    {
+                                                        custom rel physics:body0
+                                                        prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8>
+                                                        custom rel physics:body1
+                                                        prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8/openarm_right_hand>
+                                                        point3f physics:localPos0 = (0, -0.025, 0.1001)
+                                                        point3f physics:localPos1 = (0, 0, 0)
+                                                        quatf physics:localRot0 = (1, 0, 0, 0)
+                                                        quatf physics:localRot1 = (1, 0, 0, 0)
+                                                    }
+                                                }
+
+                                                def PhysicsFixedJoint "PhysicsFixedJoint"
+                                                {
+                                                    custom rel physics:body0
+                                                    prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7>
+                                                    custom rel physics:body1
+                                                    prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7/openarm_right_link8>
+                                                    point3f physics:localPos0 = (0.000001, 0.0205, 0)
+                                                    point3f physics:localPos1 = (0, 0, 0)
+                                                    quatf physics:localRot0 = (1, 0, 0, 0)
+                                                    quatf physics:localRot1 = (1, 0, 0, 0)
+                                                }
+                                            }
+
+                                            def PhysicsRevoluteJoint "openarm_right_joint7" (
+                                                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                                            )
+                                            {
+                                                float drive:angular:physics:maxForce = 7
+                                                uniform token physics:axis = "Y"
+                                                custom rel physics:body0
+                                                prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6>
+                                                custom rel physics:body1
+                                                prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6/openarm_right_link7>
+                                                point3f physics:localPos0 = (-0.0375, -2.7755576e-17, 0)
+                                                point3f physics:localPos1 = (0, 0, 0)
+                                                quatf physics:localRot0 = (1, 0, 0, 0)
+                                                quatf physics:localRot1 = (1, 0, 0, 0)
+                                                float physics:lowerLimit = -89.999985
+                                                float physics:upperLimit = 89.999985
+                                            }
+                                        }
+
+                                        def PhysicsRevoluteJoint "openarm_right_joint6" (
+                                            prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                                        )
+                                        {
+                                            float drive:angular:physics:maxForce = 7
+                                            uniform token physics:axis = "X"
+                                            custom rel physics:body0
+                                            prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5>
+                                            custom rel physics:body1
+                                            prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5/openarm_right_link6>
+                                            point3f physics:localPos0 = (0.0375, -2.7755576e-17, 0.1205)
+                                            point3f physics:localPos1 = (0, 0, 0)
+                                            quatf physics:localRot0 = (1, 0, 0, 0)
+                                            quatf physics:localRot1 = (1, 0, 0, 0)
+                                            float physics:lowerLimit = -44.999992
+                                            float physics:upperLimit = 44.999992
+                                        }
+                                    }
+
+                                    def PhysicsRevoluteJoint "openarm_right_joint5" (
+                                        prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                                    )
+                                    {
+                                        float drive:angular:physics:maxForce = 7
+                                        uniform token physics:axis = "Z"
+                                        custom rel physics:body0
+                                        prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4>
+                                        custom rel physics:body1
+                                        prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4/openarm_right_link5>
+                                        point3f physics:localPos0 = (0, -0.0315, 0.0955)
+                                        point3f physics:localPos1 = (0, 0, 0)
+                                        quatf physics:localRot0 = (1, 0, 0, 0)
+                                        quatf physics:localRot1 = (1, 0, 0, 0)
+                                        float physics:lowerLimit = -89.999985
+                                        float physics:upperLimit = 89.999985
+                                    }
+                                }
+
+                                def PhysicsRevoluteJoint "openarm_right_joint4" (
+                                    prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                                )
+                                {
+                                    float drive:angular:physics:maxForce = 27
+                                    uniform token physics:axis = "Y"
+                                    custom rel physics:body0
+                                    prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3>
+                                    custom rel physics:body1
+                                    prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3/openarm_right_link4>
+                                    point3f physics:localPos0 = (0, 0.0315, 0.15375)
+                                    point3f physics:localPos1 = (0, 0, 0)
+                                    quatf physics:localRot0 = (1, 0, 0, 0)
+                                    quatf physics:localRot1 = (1, 0, 0, 0)
+                                    float physics:lowerLimit = 0
+                                    float physics:upperLimit = 140
+                                }
+                            }
+
+                            def PhysicsRevoluteJoint "openarm_right_joint3" (
+                                prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                            )
+                            {
+                                float drive:angular:physics:maxForce = 27
+                                uniform token physics:axis = "Z"
+                                custom rel physics:body0
+                                prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2>
+                                custom rel physics:body1
+                                prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2/openarm_right_link3>
+                                point3f physics:localPos0 = (0.0301, 0, 0.06625)
+                                point3f physics:localPos1 = (0, 0, 0)
+                                quatf physics:localRot0 = (1, 0, 0, 0)
+                                quatf physics:localRot1 = (1, 0, 0, 0)
+                                float physics:lowerLimit = -89.999985
+                                float physics:upperLimit = 89.999985
+                            }
+                        }
+
+                        def PhysicsRevoluteJoint "openarm_right_joint2" (
+                            prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                        )
+                        {
+                            float drive:angular:physics:maxForce = 40
+                            uniform token physics:axis = "X"
+                            custom rel physics:body0
+                            prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1>
+                            custom rel physics:body1
+                            prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1/openarm_right_link2>
+                            point3f physics:localPos0 = (-0.0301, 2.220446e-16, 0.06)
+                            point3f physics:localPos1 = (0, 0, 0)
+                            quatf physics:localRot0 = (-0, 0, -0.7071068, -0.7071067)
+                            quatf physics:localRot1 = (0, 0, -1, 0)
+                            float physics:lowerLimit = -9.999986
+                            float physics:upperLimit = 189.99998
+                        }
+                    }
+
+                    def PhysicsRevoluteJoint "openarm_right_joint1" (
+                        prepend apiSchemas = ["PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
+                    )
+                    {
+                        float drive:angular:physics:maxForce = 40
+                        uniform token physics:axis = "Z"
+                        custom rel physics:body0
+                        prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0/openarm_right_link0>
+                        custom rel physics:body1
+                        prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0/openarm_right_link1>
+                        point3f physics:localPos0 = (0, 0, 0.0625)
+                        point3f physics:localPos1 = (0, 0, 0)
+                        quatf physics:localRot0 = (1, 0, 0, 0)
+                        quatf physics:localRot1 = (1, 0, 0, 0)
+                        float physics:lowerLimit = -79.99998
+                        float physics:upperLimit = 200.00003
+                    }
+                }
+
+                def PhysicsFixedJoint "PhysicsFixedJoint"
+                {
+                    custom rel physics:body0
+                    prepend rel physics:body0 = </openarm/Geometry/openarm_body_link0>
+                    custom rel physics:body1
+                    prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0/openarm_right_link0>
+                    point3f physics:localPos0 = (0, -0.031, 0.698)
+                    point3f physics:localPos1 = (0, 0, 0)
+                    quatf physics:localRot0 = (0.70710546, 0.7071081, 0, 0)
+                    quatf physics:localRot1 = (1, 0, 0, 0)
+                }
+            }
+
+            def PhysicsFixedJoint "PhysicsFixedJoint"
+            {
+                custom rel physics:body0
+                prepend rel physics:body0 = </openarm>
+                custom rel physics:body1
+                prepend rel physics:body1 = </openarm/Geometry/openarm_body_link0>
+                point3f physics:localPos0 = (0.185, 0, 0.34)
+                point3f physics:localPos1 = (0, 0, 0)
+                quatf physics:localRot0 = (1, 0, 0, 0)
+                quatf physics:localRot1 = (1, 0, 0, 0)
+            }
+        }
+    }
+
+    over "Physics"
+    {
+        over "PhysicsMaterial" (
+            prepend apiSchemas = ["PhysicsMaterialAPI", "NewtonMaterialAPI"]
+        )
+        {
+            float newton:rollingFriction = 0.01
+            float newton:torsionalFriction = 0.01
+            float physics:dynamicFriction = 1
+        }
+
+        over "PhysicsMaterial_1" (
+            prepend apiSchemas = ["PhysicsMaterialAPI", "NewtonMaterialAPI"]
+        )
+        {
+            float newton:rollingFriction = 0.0001
+            float newton:torsionalFriction = 0.005
+            float physics:dynamicFriction = 1
+        }
+    }
+}
+
+def PhysicsScene "PhysicsScene" (
+    prepend apiSchemas = ["NewtonSceneAPI"]
+)
+{
+    uniform int newton:maxSolverIterations = 100
+    uniform int newton:timeStepsPerSecond = 500
+    vector3f physics:gravityDirection = (0, 0, -1)
+    float physics:gravityMagnitude = 9.81
+}
+

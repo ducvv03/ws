@@ -1,0 +1,228 @@
+#usda 1.0
+(
+    customLayerData = {
+        string creator = "MuJoCo USD Converter v0.2.0"
+    }
+    defaultPrim = "openarm"
+    doc = """Generated from Composed Stage of root layer /tmp/tmpbe4ewwhh/openarm.usdc
+
+
+Generated from Composed Stage of root layer /tmp/mjcf_import_openarm_bimanual_0l1cemo4/usdex_openarm_bimanual/openarm.usdc
+
+
+Generated from Composed Stage of root layer /tmp/mjcf_import_openarm_bimanual_0l1cemo4/temp_openarm_bimanual/openarm_bimanual.usd
+
+
+Generated from Composed Stage of root layer /home/workstation/pnk/openarm_mujoco/v1/openarm_bimanual/payloads/base.usd
+"""
+    kilogramsPerUnit = 1
+    metersPerUnit = 1
+    subLayers = [
+        @./physics.usda@
+    ]
+    upAxis = "Z"
+)
+
+over "openarm"
+{
+    over "Geometry"
+    {
+        over "openarm_body_link0"
+        {
+            over "openarm_left_link0"
+            {
+                over "openarm_left_link1"
+                {
+                    over "openarm_left_link2"
+                    {
+                        over "openarm_left_link3"
+                        {
+                            over "openarm_left_link4"
+                            {
+                                over "openarm_left_link5"
+                                {
+                                    over "openarm_left_link6"
+                                    {
+                                        over "openarm_left_link7"
+                                        {
+                                            over "openarm_left_link8"
+                                            {
+                                                over "openarm_left_hand"
+                                                {
+                                                    over "openarm_left_right_finger"
+                                                    {
+                                                        over "openarm_left_finger_joint1" (
+                                                            prepend apiSchemas = ["PhysxJointAPI"]
+                                                        )
+                                                        {
+                                                        }
+                                                    }
+
+                                                    over "openarm_left_left_finger"
+                                                    {
+                                                        over "openarm_left_finger_joint2" (
+                                                            prepend apiSchemas = ["PhysxJointAPI"]
+                                                        )
+                                                        {
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            over "openarm_left_joint7" (
+                                                prepend apiSchemas = ["PhysxJointAPI"]
+                                            )
+                                            {
+                                                float physxJoint:jointFriction = 0.1
+                                            }
+                                        }
+
+                                        over "openarm_left_joint6" (
+                                            prepend apiSchemas = ["PhysxJointAPI"]
+                                        )
+                                        {
+                                            float physxJoint:jointFriction = 0.1
+                                        }
+                                    }
+
+                                    over "openarm_left_joint5" (
+                                        prepend apiSchemas = ["PhysxJointAPI"]
+                                    )
+                                    {
+                                        float physxJoint:jointFriction = 0.1
+                                    }
+                                }
+
+                                over "openarm_left_joint4" (
+                                    prepend apiSchemas = ["PhysxJointAPI"]
+                                )
+                                {
+                                    float physxJoint:jointFriction = 0.1
+                                }
+                            }
+
+                            over "openarm_left_joint3" (
+                                prepend apiSchemas = ["PhysxJointAPI"]
+                            )
+                            {
+                                float physxJoint:jointFriction = 0.1
+                            }
+                        }
+
+                        over "openarm_left_joint2" (
+                            prepend apiSchemas = ["PhysxJointAPI"]
+                        )
+                        {
+                            float physxJoint:jointFriction = 0.1
+                        }
+                    }
+
+                    over "openarm_left_joint1" (
+                        prepend apiSchemas = ["PhysxJointAPI"]
+                    )
+                    {
+                        float physxJoint:jointFriction = 0.1
+                    }
+                }
+            }
+
+            over "openarm_right_link0"
+            {
+                over "openarm_right_link1"
+                {
+                    over "openarm_right_link2"
+                    {
+                        over "openarm_right_link3"
+                        {
+                            over "openarm_right_link4"
+                            {
+                                over "openarm_right_link5"
+                                {
+                                    over "openarm_right_link6"
+                                    {
+                                        over "openarm_right_link7"
+                                        {
+                                            over "openarm_right_link8"
+                                            {
+                                                over "openarm_right_hand"
+                                                {
+                                                    over "openarm_right_right_finger"
+                                                    {
+                                                        over "openarm_right_finger_joint1" (
+                                                            prepend apiSchemas = ["PhysxJointAPI"]
+                                                        )
+                                                        {
+                                                        }
+                                                    }
+
+                                                    over "openarm_right_left_finger"
+                                                    {
+                                                        over "openarm_right_finger_joint2" (
+                                                            prepend apiSchemas = ["PhysxJointAPI"]
+                                                        )
+                                                        {
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            over "openarm_right_joint7" (
+                                                prepend apiSchemas = ["PhysxJointAPI"]
+                                            )
+                                            {
+                                                float physxJoint:jointFriction = 0.1
+                                            }
+                                        }
+
+                                        over "openarm_right_joint6" (
+                                            prepend apiSchemas = ["PhysxJointAPI"]
+                                        )
+                                        {
+                                            float physxJoint:jointFriction = 0.1
+                                        }
+                                    }
+
+                                    over "openarm_right_joint5" (
+                                        prepend apiSchemas = ["PhysxJointAPI"]
+                                    )
+                                    {
+                                        float physxJoint:jointFriction = 0.1
+                                    }
+                                }
+
+                                over "openarm_right_joint4" (
+                                    prepend apiSchemas = ["PhysxJointAPI"]
+                                )
+                                {
+                                    float physxJoint:jointFriction = 0.1
+                                }
+                            }
+
+                            over "openarm_right_joint3" (
+                                prepend apiSchemas = ["PhysxJointAPI"]
+                            )
+                            {
+                                float physxJoint:jointFriction = 0.1
+                            }
+                        }
+
+                        over "openarm_right_joint2" (
+                            prepend apiSchemas = ["PhysxJointAPI"]
+                        )
+                        {
+                            float physxJoint:jointFriction = 0.1
+                        }
+                    }
+
+                    over "openarm_right_joint1" (
+                        prepend apiSchemas = ["PhysxJointAPI"]
+                    )
+                    {
+                        float physxJoint:jointFriction = 0.1
+                    }
+                }
+            }
+        }
+    }
+}
+

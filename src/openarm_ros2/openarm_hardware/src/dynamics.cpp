@@ -60,7 +60,7 @@ bool Dynamics::Init() {
     gravity_forces.data.setZero();
     inertia_matrix.data.setZero();
 
-    solver = std::make_unique<KDL::ChainDynParam>(kdl_chain, KDL::Vector(0, 0.0, -9.81));
+    solver = std::make_unique<KDL::ChainDynParam>(kdl_chain, KDL::Vector(0, 0.0, -10.5));
 
     return true;
 }
