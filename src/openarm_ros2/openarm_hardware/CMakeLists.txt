@@ -28,6 +28,7 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(orocos_kdl REQUIRED)
+find_package(urdf REQUIRED)
 
 # Find openarm_can library
 find_package(OpenArmCAN REQUIRED)
