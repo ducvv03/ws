@@ -56,18 +56,36 @@ class PlaybackDualArmHybrid(Node):
             JointState, "/joint_states", self.joint_state_callback, 10, callback_group=self.cb_group)
 
         # Publishers for Hands
-        self.right_hand_pub = self.create_publisher(JointTrajectory, "/right_revo2_hand_controller/joint_trajectory", 10)
+        self.right_hand_pub = self.create_publisher(JointTrajectory, "/right_revo2_hand_controller/joint_trajectory",
+                                                    10)
         self.left_hand_pub = self.create_publisher(JointTrajectory, "/left_revo2_hand_controller/joint_trajectory", 10)
 
         # Publishers for Arms (Streaming)
-        self.left_arm_pub = self.create_publisher(JointTrajectory, "/left_joint_trajectory_controller/joint_trajectory", 10)
-        self.right_arm_pub = self.create_publisher(JointTrajectory, "/right_joint_trajectory_controller/joint_trajectory", 10)
+        self.left_arm_pub = self.create_publisher(JointTrajectory, "/left_joint_trajectory_controller/joint_trajectory",
+                                                  10)
+        self.right_arm_pub = self.create_publisher(JointTrajectory,
+                                                   "/right_joint_trajectory_controller/joint_trajectory", 10)
 
         self.get_logger().info("=== DUAL ARM CSV PLAYBACK ENGINE STARTED ===")
 
-
     def joint_state_callback(self, msg):
         self.current_joint_state = msg
+
+    # ============================================================
+    # LẤY VỊ TRÍ HIỆN TẠI (DÙNG ĐỂ LÀM MƯỢT)
+    # ============================================================
+    def get_current_positions_for(self, target_joint_names):
+        """Lấy vị trí thực tế của robot dựa theo tên khớp yêu cầu"""
+        if not self.current_joint_state:
+            return None
+        current_dict = dict(zip(self.current_joint_state.name, self.current_joint_state.position))
+        result = []
+        for name in target_joint_names:
+            if name in current_dict:
+                result.append(current_dict[name])
+            else:
+                return None
+        return result
 
     # ============================================================
     # HAND CONTROL
@@ -161,7 +179,7 @@ class PlaybackDualArmHybrid(Node):
         return rev_traj
 
     # ============================================================
-    # STREAMING TOPIC
+    # STREAMING TOPIC (CÓ AUTO-SMOOTHING)
     # ============================================================
     def execute_by_streaming(self, dual_trajectory):
         if not dual_trajectory.joint_trajectory.points:
@@ -174,6 +192,22 @@ class PlaybackDualArmHybrid(Node):
         names_r = [names[i] for i in idx_r]
 
         all_pts = [pt.positions for pt in dual_trajectory.joint_trajectory.points]
+
+        # --------------------------------------------------------
+        # TÍNH NĂNG CHỐNG GIẬT LÚC CHUYỂN FILE / CHUYỂN QUỸ ĐẠO
+        # --------------------------------------------------------
+        current_p = self.get_current_positions_for(names)
+        if current_p is not None:
+            # Tính sai lệch lớn nhất giữa vị trí hiện tại và điểm đầu của file
+            max_diff = max([abs(a - b) for a, b in zip(current_p, all_pts[0])])
+
+            # Nếu chênh lệch > 0.01 rad (khoảng 0.5 độ), chèn vị trí hiện tại lên đầu mảng.
+            # Thuật toán nội suy bên dưới sẽ tự động nối mượt từ current_p tới all_pts[0]
+            if max_diff > 0.01:
+                self.get_logger().info(f"Smoothing transition... Max joint diff: {max_diff:.3f} rad")
+                all_pts.insert(0, current_p)
+        # --------------------------------------------------------
+
         stream_pts = []
         last_p = all_pts[0]
         stream_pts.append(last_p)
@@ -204,14 +238,16 @@ class PlaybackDualArmHybrid(Node):
             msg_l.joint_names = names_l
             pt_l = JointTrajectoryPoint()
             pt_l.positions = [p[i] for i in idx_l]
-            pt_l.time_from_start.sec = 0; pt_l.time_from_start.nanosec = 0
+            pt_l.time_from_start.sec = 0;
+            pt_l.time_from_start.nanosec = 0
             msg_l.points.append(pt_l)
 
             msg_r = JointTrajectory()
             msg_r.joint_names = names_r
             pt_r = JointTrajectoryPoint()
             pt_r.positions = [p[i] for i in idx_r]
-            pt_r.time_from_start.sec = 0; pt_r.time_from_start.nanosec = 0
+            pt_r.time_from_start.sec = 0;
+            pt_r.time_from_start.nanosec = 0
             msg_r.points.append(pt_r)
 
             self.left_arm_pub.publish(msg_l)
