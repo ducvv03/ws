@@ -34,8 +34,8 @@ class MoveDualArmHybrid(Node):
         # ==========================================
         # PLAN or LOAD mode
         # ==========================================
-        # self.RUN_MODE = "PLAN"
-        self.RUN_MODE = "LOAD"
+        self.RUN_MODE = "PLAN"
+        # self.RUN_MODE = "LOAD"
         self.CSV_PATH = "trajectory.csv"
         # ==========================================
 
@@ -91,7 +91,7 @@ class MoveDualArmHybrid(Node):
             (create_pose(0.25, 0.23, 0.40, qx, qy, qz, qw)),
             (create_pose(0.30, 0.23, 0.35, qx2, qy2, qz2, qw2), "CLOSE_HAND"),         # 2. Pre-pick
             (create_pose(0.30, 0.16, 0.35, qx2, qy2, qz2, qw2)),  # 3. Pick
-            (create_pose(0.30, 0.16, 0.40, qx2, qy2, qz2, qw2), "WAIT_ENTER"), # 4. Lift
+            (create_pose(0.30, 0.16, 0.45, qx2, qy2, qz2, qw2), "WAIT_ENTER"), # 4. Lift
         ]
         return left_forward
 

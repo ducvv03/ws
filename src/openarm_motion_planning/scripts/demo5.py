@@ -28,21 +28,21 @@ class PlaybackDualArmHybrid(Node):
                 "csv_path": "40dg_new.csv",
                 "close_pose": [1.0, 0.0, 0.4, 0.7, 0.9, 1.0],  # Pose nắm cho file 1
                 "forward_actions": {
-                    0: "open",
-                    3: "close"  # Khi ĐI TIẾN, chạy xong index 3 -> Đóng tay
+                    0: "open-before",  # Đảm bảo tay mở ra TRƯỚC khi rời khỏi Home
+                    3: "close-before"  # Đóng tay TRƯỚC KHI chạy quỹ đạo index 2 (Pre-pick)
                 },
                 "reverse_actions": {
-                    5: "open"  # Khi ĐI LÙI, lùi xong index 4 (Hạ đồ xuống) -> Mở tay thả đồ
+                    5: "open-after"    # Mở tay SAU KHI lùi xong quỹ đạo index 4 (Hạ đồ xuống)
                 }
             },
             {
                 "csv_path": "12cm.csv",
                 "close_pose": [1.0, 0.0, 0.7, 0.6, 0.6, 0.7],  # Pose nắm cho file 2
                 "forward_actions": {
-                    3: "close"
+                    2: "close-after"  # Đóng tay TRƯỚC KHI chạy quỹ đạo index 2
                 },
                 "reverse_actions": {
-                    4: "open"
+                    4: "open-after"    # Mở tay SAU KHI lùi xong quỹ đạo index 4
                 }
             }
         ]
@@ -228,6 +228,21 @@ class PlaybackDualArmHybrid(Node):
 
         total_tasks = len(self.TASKS)
 
+        # Hàm tiện ích xử lý logic ĐÓNG/MỞ tay kết hợp TRƯỚC/SAU
+        def trigger_hand_action(action_dict, index, current_timing, pose):
+            if index in action_dict:
+                cmd = action_dict[index].lower()
+                parts = cmd.split('-')
+                action_type = parts[0]  # "open" hoặc "close"
+                timing = parts[1] if len(parts) > 1 else "after"  # Mặc định là "after"
+
+                if timing == current_timing:
+                    if action_type == "close":
+                        self.control_hands(close=True, custom_close_pose=pose)
+                    elif action_type == "open":
+                        self.control_hands(close=False)
+                    time.sleep(0.5)
+
         for task_idx, task in enumerate(self.TASKS):
             if not rclpy.ok(): break
 
@@ -262,18 +277,15 @@ class PlaybackDualArmHybrid(Node):
                 if not rclpy.ok(): break
                 self.get_logger().info(f"--- Processing segment {i} -> {i + 1} ---")
 
-                # Chạy quỹ đạo
+                # Kiểm tra action "before"
+                trigger_hand_action(fw_actions, i, "before", close_pose)
+
+                # Chạy quỹ đạo Arms
                 dual_trajectory = saved_trajectories[i]
                 self.execute_by_streaming(dual_trajectory)
 
-                # Xử lý đóng/mở bàn tay
-                if i in fw_actions:
-                    action = fw_actions[i]
-                    if action == "close":
-                        self.control_hands(close=True, custom_close_pose=close_pose)
-                    elif action == "open":
-                        self.control_hands(close=False)
-                    time.sleep(1.5)  # Chờ tay hoàn thành thao tác
+                # Kiểm tra action "after"
+                trigger_hand_action(fw_actions, i, "after", close_pose)
 
                 # Nếu là segment cuối cùng của Lượt đi -> Chờ xác nhận
                 if i == num_segments - 1:
@@ -282,25 +294,9 @@ class PlaybackDualArmHybrid(Node):
                     print("=" * 50 + "\033[0m\n")
                     input()
 
-
             # --- STAGE 2: REVERSE (LÙI) ---
             self.get_logger().info("--- STAGE 2: REVERSE STREAMING ---")
 
-            # 2.1: Lùi segment cuối cùng (Thường là hạ tay xuống)
-            print(f"\033[92m---> Reversing segment {num_segments - 1}...\033[0m")
-            traj_reverse_last = self.reverse_trajectory(saved_trajectories[-1])
-            self.execute_by_streaming(traj_reverse_last)
-
-            # Xử lý tay sau khi hạ đồ xuống (Segment cuối)
-            if (num_segments - 1) in rv_actions:
-                action = rv_actions[num_segments - 1]
-                if action == "close":
-                    self.control_hands(close=True, custom_close_pose=close_pose)
-                elif action == "open":
-                    self.control_hands(close=False)
-                time.sleep(1.5)
-
-            # 2.2: Các đoạn lùi tiếp theo
             is_last_task = (task_idx == total_tasks - 1)
 
             if is_last_task:
@@ -310,20 +306,19 @@ class PlaybackDualArmHybrid(Node):
                 print("\033[92m---> Lùi về vị trí Raise Hand (Chuẩn bị cho task tiếp theo)...\033[0m")
                 stop_idx = 1
 
-            for idx in range(num_segments - 2, stop_idx, -1):
+            # Gộp chung toàn bộ quy trình lùi vào 1 vòng lặp để xử lý hand action đồng bộ
+            for idx in range(num_segments - 1, stop_idx, -1):
                 if not rclpy.ok(): break
                 print(f"\033[92m---> Reversing segment {idx}...\033[0m")
+
+                # Kiểm tra action "before" (Trước khi lùi segment)
+                trigger_hand_action(rv_actions, idx, "before", close_pose)
+
                 rev_traj = self.reverse_trajectory(saved_trajectories[idx])
                 self.execute_by_streaming(rev_traj)
 
-                # Xử lý tay (nếu có định nghĩa cho segment lùi này)
-                if idx in rv_actions:
-                    action = rv_actions[idx]
-                    if action == "close":
-                        self.control_hands(close=True, custom_close_pose=close_pose)
-                    elif action == "open":
-                        self.control_hands(close=False)
-                    time.sleep(1.5)
+                # Kiểm tra action "after" (Sau khi lùi segment)
+                trigger_hand_action(rv_actions, idx, "after", close_pose)
 
             self.get_logger().info(f"--- TASK {task_idx + 1} FINISHED! ---")
 
