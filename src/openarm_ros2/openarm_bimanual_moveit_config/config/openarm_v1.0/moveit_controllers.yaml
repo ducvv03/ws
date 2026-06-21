@@ -21,8 +21,8 @@ moveit_simple_controller_manager:
   controller_names:
     - left_joint_trajectory_controller
     - right_joint_trajectory_controller
-    - left_gripper_controller
-    - right_gripper_controller
+    - left_revo2_hand_controller
+    - right_revo2_hand_controller
 
   left_joint_trajectory_controller:
     type: FollowJointTrajectory
@@ -48,15 +48,28 @@ moveit_simple_controller_manager:
       - openarm_right_joint7
     action_ns: follow_joint_trajectory
     default: true
-  left_gripper_controller:
-    type: GripperCommand
+
+  left_revo2_hand_controller:
+    type: FollowJointTrajectory
     joints:
-      - openarm_left_finger_joint1
-    action_ns: gripper_cmd
+      - left_thumb_metacarpal_joint  # Thumb metacarpal joint
+      - left_thumb_proximal_joint    # Thumb proximal joint
+      - left_index_proximal_joint    # Index finger proximal joint
+      - left_middle_proximal_joint   # Middle finger proximal joint
+      - left_ring_proximal_joint     # Ring finger proximal joint
+      - left_pinky_proximal_joint    # Pinky finger proximal joint
+    action_ns: follow_joint_trajectory
     default: true
-  right_gripper_controller:
-    type: GripperCommand
+
+  # Revo2 right hand unified controller - controls all 6 main joints
+  right_revo2_hand_controller:
+    type: FollowJointTrajectory
     joints:
-      - openarm_right_finger_joint1
-    action_ns: gripper_cmd
+      - right_thumb_metacarpal_joint  # Thumb metacarpal joint
+      - right_thumb_proximal_joint    # Thumb proximal joint
+      - right_index_proximal_joint    # Index finger proximal joint
+      - right_middle_proximal_joint   # Middle finger proximal joint
+      - right_ring_proximal_joint     # Ring finger proximal joint
+      - right_pinky_proximal_joint    # Pinky finger proximal joint
+    action_ns: follow_joint_trajectory
     default: true

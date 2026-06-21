@@ -26,7 +26,9 @@ def rviz_spawner(context: LaunchContext, arm_type):
             "openarm", package_name="openarm_bimanual_moveit_config")
         .robot_description_semantic(file_path=f"config/{arm_type_str}/openarm_bimanual.srdf")
         .joint_limits(file_path=f"config/{arm_type_str}/joint_limits.yaml")
+        .trajectory_execution(file_path=f"config/{arm_type_str}/moveit_controllers.yaml")
         .robot_description_kinematics(file_path=f"config/{arm_type_str}/kinematics.yaml")
+        .pilz_cartesian_limits(file_path=f"config/{arm_type_str}/pilz_cartesian_limits.yaml")
         .to_moveit_configs()
     )
     return generate_moveit_rviz_launch(moveit_config).entities
@@ -34,7 +36,7 @@ def rviz_spawner(context: LaunchContext, arm_type):
 
 def generate_launch_description():
     return LaunchDescription([
-        DeclareLaunchArgument("arm_type", default_value="v20"),
+        DeclareLaunchArgument("arm_type", default_value="openarm_v1.0"),
         OpaqueFunction(function=rviz_spawner, args=[
                        LaunchConfiguration("arm_type")])
     ])

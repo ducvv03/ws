@@ -25,14 +25,9 @@ limitations under the License.
             body_inertials
             body_kinematics
             body_kinematics_link
-            ee_kinematics
-            ee_kinematics_link
-            ee_inertials
-            ee_joints_limits
             parent:='world'
             xyz:='0 0 0'
             rpy:='0 0 0'
-            ee_type:=''
             ros2_control:=false
             can_interface:=''
             use_fake_hardware:=false
@@ -60,9 +55,6 @@ limitations under the License.
 
     <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/body/openarm_body_macro.xacro" />
     <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/body/openarm_body.xacro" />
-
-    <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/ee/ee_dispatcher.xacro" />
-    <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/ee/openarm_ee_macro.xacro" />
 
     <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/ros2_control/openarm.ros2_control.xacro" />
     <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/ros2_control/openarm.bimanual.ros2_control.xacro" />
@@ -114,27 +106,6 @@ limitations under the License.
         kinematics_link="${kinematics_link}"
         kinematics_offset="${kinematics_offset}" />
 
-        <xacro:openarm_ee
-            connected_to="openarm_left_link7"
-            arm_type="${arm_type}"
-            arm_prefix="left_"
-            ee_type="${ee_type}"
-            ee_kinematics="${ee_kinematics}"
-            ee_kinematics_link="${ee_kinematics_link}"
-            ee_inertials="${ee_inertials}"
-            ee_joints_limits="${ee_joints_limits}"
-        />
-        <xacro:openarm_ee
-            connected_to="openarm_right_link7"
-            arm_type="${arm_type}"
-            arm_prefix="right_"
-            ee_type="${ee_type}"
-            ee_kinematics="${ee_kinematics}"
-            ee_kinematics_link="${ee_kinematics_link}"
-            ee_inertials="${ee_inertials}"
-            ee_joints_limits="${ee_joints_limits}"
-        />
-
         <!-- ros2_control hardware interfaces for bimanual setup -->
         <xacro:if value="${ros2_control}">
             <xacro:openarm_bimanual_ros2_control
@@ -146,8 +117,7 @@ limitations under the License.
             fake_sensor_commands="${fake_sensor_commands}"
             left_arm_prefix="${left_arm_prefix}"
             right_arm_prefix="${right_arm_prefix}"
-            hand="true"
-            ee_type="${ee_type}"/>
+            hand="true"/>
         </xacro:if>
     </xacro:if>
 
@@ -167,16 +137,6 @@ limitations under the License.
             connected_to=""
         />
 
-        <xacro:openarm_ee
-            connected_to="openarm_${arm_prefix_modified}link7" arm_type="${arm_type}"
-            arm_prefix="${arm_prefix_modified}"
-            ee_type="${ee_type}"
-            ee_kinematics="${ee_kinematics}"
-            ee_kinematics_link="${ee_kinematics_link}"
-            ee_inertials="${ee_inertials}"
-            ee_joints_limits="${ee_joints_limits}"
-        />
-
         <xacro:if value="${ros2_control}">
             <xacro:openarm_arm_ros2_control
                 arm_type="${arm_type}"
@@ -186,8 +146,7 @@ limitations under the License.
                 use_fake_hardware="${use_fake_hardware}"
                 fake_sensor_commands="${fake_sensor_commands}"
                 hand="true"
-                can_fd="${can_fd}"
-                ee_type="${ee_type}"/>
+                can_fd="${can_fd}"/>
         </xacro:if>
 
     </xacro:if>

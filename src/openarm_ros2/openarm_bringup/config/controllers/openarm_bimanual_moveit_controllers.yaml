@@ -19,29 +19,23 @@ controller_manager:
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
-
     left_forward_position_controller:
       type: forward_command_controller/ForwardCommandController
-
     left_forward_velocity_controller:
       type: forward_command_controller/ForwardCommandController
-
     left_joint_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
-
-    left_gripper_controller:
-      type: joint_trajectory_controller/JointTrajectoryController
-
     right_forward_position_controller:
       type: forward_command_controller/ForwardCommandController
-
     right_forward_velocity_controller:
       type: forward_command_controller/ForwardCommandController
-
     right_joint_trajectory_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
-    right_gripper_controller:
+    # Khai báo bàn tay
+    left_hand_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+    right_hand_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
 left_forward_position_controller:
@@ -91,38 +85,11 @@ left_joint_trajectory_controller:
       - position
     state_interfaces:
       - position
-
     interpolation_method: "splines"
     interpolate_from_desired_state: false
-
     state_publish_rate: 50.0
     action_monitor_rate: 20.0
     allow_partial_joints_goal: false
-
-    constraints:
-      stopped_velocity_tolerance: 0.01
-      goal_time: 0.0
-      openarm_left_joint1: { trajectory: 0.0, goal: 0.0 }
-      openarm_left_joint2: { trajectory: 0.0, goal: 0.0 }
-      openarm_left_joint3: { trajectory: 0.0, goal: 0.0 }
-      openarm_left_joint4: { trajectory: 0.0, goal: 0.0 }
-      openarm_left_joint5: { trajectory: 0.0, goal: 0.0 }
-      openarm_left_joint6: { trajectory: 0.0, goal: 0.0 }
-      openarm_left_joint7: { trajectory: 0.0, goal: 0.0 }
-
-left_gripper_controller:
-  ros__parameters:
-    joints:
-      - openarm_left_finger_joint1
-    command_interfaces:
-      - position
-    state_interfaces:
-      - position
-
-    interpolation_method: "splines"
-    constraints:
-      stopped_velocity_tolerance: 0.01
-      goal_time: 0.0
 
 right_forward_position_controller:
   ros__parameters:
@@ -171,35 +138,42 @@ right_joint_trajectory_controller:
       - position
     state_interfaces:
       - position
-
     interpolation_method: "splines"
     interpolate_from_desired_state: false
-
     state_publish_rate: 50.0
     action_monitor_rate: 20.0
     allow_partial_joints_goal: false
 
-    constraints:
-      stopped_velocity_tolerance: 0.01
-      goal_time: 0.0
-      openarm_right_joint1: { trajectory: 0.0, goal: 0.0 }
-      openarm_right_joint2: { trajectory: 0.0, goal: 0.0 }
-      openarm_right_joint3: { trajectory: 0.0, goal: 0.0 }
-      openarm_right_joint4: { trajectory: 0.0, goal: 0.0 }
-      openarm_right_joint5: { trajectory: 0.0, goal: 0.0 }
-      openarm_right_joint6: { trajectory: 0.0, goal: 0.0 }
-      openarm_right_joint7: { trajectory: 0.0, goal: 0.0 }
-
-right_gripper_controller:
+left_hand_controller:
   ros__parameters:
     joints:
-      - openarm_right_finger_joint1
+      - left_thumb_metacarpal_joint
+      - left_thumb_proximal_joint
+      - left_index_proximal_joint
+      - left_middle_proximal_joint
+      - left_ring_proximal_joint
+      - left_pinky_proximal_joint
     command_interfaces:
       - position
     state_interfaces:
       - position
+    state_publish_rate: 50.0
+    action_monitor_rate: 20.0
+    allow_partial_joints_goal: false
 
-    interpolation_method: "splines"
-    constraints:
-      stopped_velocity_tolerance: 0.01
-      goal_time: 0.0
+right_hand_controller:
+  ros__parameters:
+    joints:
+      - right_thumb_metacarpal_joint
+      - right_thumb_proximal_joint
+      - right_index_proximal_joint
+      - right_middle_proximal_joint
+      - right_ring_proximal_joint
+      - right_pinky_proximal_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+    state_publish_rate: 50.0
+    action_monitor_rate: 20.0
+    allow_partial_joints_goal: false

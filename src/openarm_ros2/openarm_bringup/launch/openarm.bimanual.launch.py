@@ -112,9 +112,6 @@ def robot_nodes_spawner(context: LaunchContext, description_package, description
         output="screen",
         namespace=namespace,
         parameters=[robot_description_param],
-        # remappings=[
-        #     ('/joint_states', '/temp_joint_states')
-        # ],
     )
 
     control_node = Node(
@@ -123,9 +120,6 @@ def robot_nodes_spawner(context: LaunchContext, description_package, description
         output="both",
         namespace=namespace,
         parameters=[robot_description_param, controllers_file_str],
-        # remappings=[
-        #     ('/joint_states', '/temp_joint_states')
-        # ]
     )
 
     return [robot_state_pub_node, control_node]
@@ -171,12 +165,12 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "description_file",
-            default_value="openarm_v10.urdf.xacro",
+            default_value="v10.urdf.xacro",
             description="URDF/XACRO description file with the robot.",
         ),
         DeclareLaunchArgument(
             "arm_type",
-            default_value="openarm_v10",
+            default_value="openarm_v1.0",
             description="Arm type. Accepts: v1.0, v10, openarm_v1.0, v2.0, v20, openarm_v2.0, etc.",
         ),
         DeclareLaunchArgument(
@@ -273,13 +267,13 @@ def generate_launch_description():
         args=[robot_controller, arm_prefix]
     )
 
-    gripper_controller_spawner = OpaqueFunction(
+    hand_controller_spawner = OpaqueFunction(
         function=lambda context: [Node(
             package="controller_manager",
             executable="spawner",
             namespace=namespace_from_context(context, arm_prefix),
             arguments=[
-                "left_gripper_controller", "right_gripper_controller",
+                "left_revo2_hand_controller", "right_revo2_hand_controller",
                 "-c",
                 f"/{namespace_from_context(context, arm_prefix)}/controller_manager"
                 if namespace_from_context(context, arm_prefix)
@@ -298,7 +292,6 @@ def generate_launch_description():
                         joint_state_broadcaster_spawner]),
             TimerAction(period=LAUNCH_DELAY_SECONDS,
                         actions=[controller_spawner_func]),
-            TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[
-                        gripper_controller_spawner]),
+            TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[hand_controller_spawner]),
         ]
     )

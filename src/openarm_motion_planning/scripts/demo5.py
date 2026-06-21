@@ -4,6 +4,9 @@ import sys
 import math
 import threading
 import time
+import copy
+import csv
+import os
 
 import rclpy
 from rclpy.node import Node
@@ -19,7 +22,7 @@ from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import (
     Constraints, JointConstraint, MoveItErrorCodes, RobotState,
-    AttachedCollisionObject, CollisionObject
+    AttachedCollisionObject, CollisionObject, RobotTrajectory
 )
 from moveit_msgs.srv import GetPositionIK, ApplyPlanningScene
 
@@ -27,6 +30,24 @@ from moveit_msgs.srv import GetPositionIK, ApplyPlanningScene
 class MoveDualArmHybrid(Node):
     def __init__(self):
         super().__init__("move_dual_arm_hybrid")
+
+        # ==========================================
+        # PLAN or LOAD mode
+        # ==========================================
+        self.RUN_MODE = "LOAD"
+
+        # Danh sách các file CSV và pose tay tương ứng
+        self.TASKS = [
+            {
+                "csv_path": "40dg.csv",
+                "close_pose": [1.1, 0.0, 0.4, 0.7, 0.9, 1.0]  # Pose nắm cho file 1
+            },
+            {
+                "csv_path": "12cm.csv",
+                "close_pose": [1.1, 0.0, 0.5, 0.6, 0.6, 0.5]  # Pose nắm cho file 2
+            }
+        ]
+        # ==========================================
 
         self.cb_group = ReentrantCallbackGroup()
 
@@ -42,8 +63,9 @@ class MoveDualArmHybrid(Node):
             JointState, "/joint_states", self.joint_state_callback, 10, callback_group=self.cb_group)
 
         # Topic for hands
-        self.right_hand_pub = self.create_publisher(JointTrajectory, "/right_hand_controller/joint_trajectory", 10)
-        self.left_hand_pub = self.create_publisher(JointTrajectory, "/left_hand_controller/joint_trajectory", 10)
+        self.right_hand_pub = self.create_publisher(JointTrajectory, "/right_revo2_hand_controller/joint_trajectory",
+                                                    10)
+        self.left_hand_pub = self.create_publisher(JointTrajectory, "/left_revo2_hand_controller/joint_trajectory", 10)
 
         # Topic Streaming for arms
         self.left_arm_pub = self.create_publisher(JointTrajectory, "/left_joint_trajectory_controller/joint_trajectory",
@@ -52,10 +74,10 @@ class MoveDualArmHybrid(Node):
                                                    "/right_joint_trajectory_controller/joint_trajectory", 10)
 
         # 3. Targets
-        self.left_targets, self.right_targets = self.define_targets()
+        self.left_targets = self.define_targets()
 
     # ============================================================
-    # PICK & PLACE
+    # DEFINE POSE
     # ============================================================
     def define_targets(self):
         def create_pose(x, y, z, qx, qy, qz, qw):
@@ -69,28 +91,17 @@ class MoveDualArmHybrid(Node):
             p.orientation.w = qw
             return p
 
-        left = [
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 0. Home
-            create_pose(0.27, 0.10, 0.40, 0.71, 0.0, 0.71, 0.0),  # 1. Pre-pick
-            (create_pose(0.27, 0.05, 0.40, 0.71, 0.0, 0.71, 0.0), "HOLD"),  # 2. Pick
-            # create_pose(0.30, 0.10, 0.50, 0.71, 0.0, 0.71, 0.0),  # 3. Pick up
-            create_pose(0.33, 0.20, 0.50, 0.71, 0.0, 0.71, 0.0),  # 4. Move
-            (create_pose(0.25, 0.20, 0.40, 0.71, 0.0, 0.71, 0.0), "DROP"),  # 5. Place
-            create_pose(0.25, 0.25, 0.40, 0.71, 0.0, 0.71, 0.0),  # 6. Post-place
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 7. Home
-        ]
+        qx, qy, qz, qw = 0.71, 0.0, 0.71, 0.0
+        qx2, qy2, qz2, qw2 = 0.939693, 0.0, 0.342020, 0.0
 
-        right = [
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-            create_pose(0.27, -0.20, 0.40, 0.71, 0.0, 0.71, 0.0),
-            (create_pose(0.27, -0.15, 0.40, 0.71, 0.0, 0.71, 0.0), "HOLD"),
-            # create_pose(0.30, -0.10, 0.50, 0.71, 0.0, 0.71, 0.0),
-            create_pose(0.33, -0.0, 0.50, 0.71, 0.0, 0.71, 0.0),
-            (create_pose(0.25, -0.0, 0.40, 0.71, 0.0, 0.71, 0.0), "DROP"),
-            create_pose(0.25, -0.05, 0.40, 0.71, 0.0, 0.71, 0.0),
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        left_forward = [
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 0. Home
+            (create_pose(0.014604, 0.1535, 0.35, qx, qy, qz, qw)),  # 1. Raise hand
+            (create_pose(0.30, 0.23, 0.35, qx2, qy2, qz2, qw2), "CLOSE_HAND"),  # 2. Pre-pick
+            (create_pose(0.30, 0.16, 0.35, qx2, qy2, qz2, qw2)),  # 3. Pick
+            (create_pose(0.30, 0.16, 0.40, qx2, qy2, qz2, qw2), "WAIT_ENTER"),  # 4. Lift
         ]
-        return left, right
+        return left_forward
 
     def joint_state_callback(self, msg):
         self.current_joint_state = msg
@@ -100,7 +111,7 @@ class MoveDualArmHybrid(Node):
             return target[0], target[1]
         return target, None
 
-    def control_hands(self, close=True):
+    def control_hands(self, close=True, custom_close_pose=None):
         msg_right = JointTrajectory()
         msg_left = JointTrajectory()
 
@@ -113,10 +124,13 @@ class MoveDualArmHybrid(Node):
         point = JointTrajectoryPoint()
         if close:
             self.get_logger().info("Closing hands ...")
-            point.positions = [0.0, 0.0, 0.5, 0.5, 0.5, 0.5]
+            if custom_close_pose:
+                point.positions = custom_close_pose
+            else:
+                point.positions = [1.1, 0.0, 0.4, 0.7, 0.9, 1.0]
         else:
             self.get_logger().info("Opening hands ...")
-            point.positions = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            point.positions = [1.1, 0.0, 0.0, 0.0, 0.0, 0.0]
 
         point.time_from_start.sec = 1
         msg_right.points.append(point)
@@ -131,76 +145,77 @@ class MoveDualArmHybrid(Node):
         return future.result() if future.done() else None
 
     # ============================================================
-    # ATTACH OBJECT
+    # SAVE & LOAD CSV
     # ============================================================
-    def manage_attached_object_sync(self, attach=True):
-        req = ApplyPlanningScene.Request()
-        req.scene.is_diff = True
+    def save_to_csv(self, filename, trajectories):
+        try:
+            with open(filename, mode='w', newline='') as f:
+                writer = csv.writer(f)
+                header = ["segment_idx"] + \
+                         [f"openarm_left_joint{i + 1}" for i in range(7)] + \
+                         [f"openarm_right_joint{i + 1}" for i in range(7)]
+                writer.writerow(header)
 
-        if self.current_joint_state is not None:
-            req.scene.robot_state.joint_state = self.current_joint_state
+                for seg_idx, traj in enumerate(trajectories):
+                    for pt in traj.joint_trajectory.points:
+                        row = [seg_idx] + list(pt.positions)
+                        writer.writerow(row)
 
-        aco = AttachedCollisionObject()
-        aco.link_name = "openarm_left_tcp"
-        aco.object.id = "carried_box"
-        aco.object.header.frame_id = "openarm_left_tcp"
+            self.get_logger().info(f"Saved {len(trajectories)} trajectories into: {filename}")
+        except Exception as e:
+            self.get_logger().error(f"Error when save CSV: {e}")
 
-        co_world = CollisionObject()
-        co_world.id = "carried_box"
-        co_world.operation = CollisionObject.REMOVE
+    def load_from_csv(self, filename):
+        trajectories = []
+        if not os.path.exists(filename):
+            self.get_logger().error(f"File {filename} doesnt exist!")
+            return None
 
-        if attach:
-            self.get_logger().info("Attach object into Planning Scene...")
-            aco.object.operation = CollisionObject.ADD
+        try:
+            current_seg_idx = -1
+            current_traj = None
+            joint_names = [f"openarm_left_joint{i + 1}" for i in range(7)] + \
+                          [f"openarm_right_joint{i + 1}" for i in range(7)]
 
-            box = SolidPrimitive(type=SolidPrimitive.BOX, dimensions=[0.1, 0.2, 0.1])
-            box_pose = Pose()
-            box_pose.position.y = 0.1
-            box_pose.position.z = 0.1
-            box_pose.orientation.w = 1.0
+            with open(filename, mode='r') as f:
+                reader = csv.reader(f)
+                next(reader)
 
-            aco.object.primitives.append(box)
-            aco.object.primitive_poses.append(box_pose)
+                for row in reader:
+                    if not row: continue
+                    seg_idx = int(row[0])
+                    positions = [float(x) for x in row[1:]]
 
-            aco.touch_links = [
-                "openarm_body_link0",
-                "openarm_left_hand", "openarm_right_hand",
-                "openarm_left_tcp", "openarm_right_tcp",
-                "openarm_left_link7", "openarm_right_link7",
-                "openarm_left_link6", "openarm_right_link6",
-                "openarm_left_link5", "openarm_right_link5",
-                "openarm_left_left_finger", "openarm_left_right_finger",
-                "openarm_right_left_finger", "openarm_right_right_finger",
-                "left_base_link", "left_index_proximal_link", "left_middle_proximal_link", "left_pinky_distal_link",
-                "left_pinky_proximal_link", "left_ring_proximal_link", "left_thumb_metacarpal_link",
-                "left_thumb_proximal_link",
-                "right_base_link", "right_index_proximal_link", "right_middle_proximal_link",
-                "right_pinky_proximal_link",
-                "right_ring_proximal_link", "right_thumb_metacarpal_link", "right_thumb_proximal_link",
-                "right_index_distal_link", "right_pinky_distal_link", "right_pinky_touch_link",
-                "right_thumb_proximal_link"
-            ]
-            req.scene.robot_state.attached_collision_objects.append(aco)
-        else:
-            self.get_logger().info("Remove object from Planning Scene...")
-            aco.object.operation = CollisionObject.REMOVE
-            req.scene.robot_state.attached_collision_objects.append(aco)
-            req.scene.world.collision_objects.append(co_world)
+                    if seg_idx != current_seg_idx:
+                        if current_traj is not None:
+                            trajectories.append(current_traj)
+                        current_traj = RobotTrajectory()
+                        current_traj.joint_trajectory.joint_names = joint_names
+                        current_seg_idx = seg_idx
 
-        res = self._wait_for_future(self.scene_client.call_async(req))
-        return res and res.success
+                    pt = JointTrajectoryPoint()
+                    pt.positions = positions
+                    current_traj.joint_trajectory.points.append(pt)
+
+                if current_traj is not None:
+                    trajectories.append(current_traj)
+
+            self.get_logger().info(f"Loaded {len(trajectories)} trajectories from: {filename}")
+            return trajectories
+        except Exception as e:
+            self.get_logger().error(f"Error when read CSV: {e}")
+            return None
 
     # ============================================================
-    # COMPUTE IK
+    # COMPUTE IK & PLANNING
     # ============================================================
-    def compute_ik_sync(self, group_name, ik_link_name, target_pose):
+    def compute_ik_left_sync(self, target_pose):
         req = GetPositionIK.Request()
-        req.ik_request.group_name = group_name
-        req.ik_request.ik_link_name = ik_link_name
+        req.ik_request.group_name = "left_arm"
+        req.ik_request.ik_link_name = "openarm_left_tcp"
         req.ik_request.pose_stamped.header.frame_id = "openarm_body_link0"
         req.ik_request.pose_stamped.pose = target_pose
         req.ik_request.avoid_collisions = True
-        req.ik_request.robot_state.is_diff = True
 
         if self.current_joint_state is not None:
             req.ik_request.robot_state.joint_state = self.current_joint_state
@@ -209,17 +224,13 @@ class MoveDualArmHybrid(Node):
         if res is None or res.error_code.val != MoveItErrorCodes.SUCCESS:
             return None
 
-        prefix = "openarm_left" if "left" in group_name else "openarm_right"
         joints = [pos for name, pos in zip(res.solution.joint_state.name, res.solution.joint_state.position)
-                  if prefix in name and "finger" not in name]
+                  if "openarm_left" in name and "finger" not in name]
         return joints
 
-    # ========
-    # PLANNING
-    # ========
-    def plan_segment_sync(self, end_l, end_r):
+    def plan_left_segment_sync(self, end_l):
         goal = MoveGroup.Goal()
-        goal.request.group_name = "both_arms"
+        goal.request.group_name = "left_arm"
         goal.request.allowed_planning_time = 5.0
         goal.planning_options.plan_only = True
 
@@ -227,10 +238,6 @@ class MoveDualArmHybrid(Node):
         for i, pos in enumerate(end_l):
             c.joint_constraints.append(
                 JointConstraint(joint_name=f"openarm_left_joint{i + 1}", position=pos, tolerance_above=0.01,
-                                tolerance_below=0.01, weight=1.0))
-        for i, pos in enumerate(end_r):
-            c.joint_constraints.append(
-                JointConstraint(joint_name=f"openarm_right_joint{i + 1}", position=pos, tolerance_above=0.01,
                                 tolerance_below=0.01, weight=1.0))
         goal.request.goal_constraints.append(c)
 
@@ -247,24 +254,51 @@ class MoveDualArmHybrid(Node):
 
         return result.planned_trajectory
 
-    # ============================================================
-    # TRANSFORM TRAJECTORY AND SEND TOPIC
-    # ============================================================
-    def execute_by_streaming(self, planned_trajectory):
-        if not planned_trajectory.joint_trajectory.points:
+    def mirror_left_trajectory_to_dual(self, left_traj):
+        dual_traj = RobotTrajectory()
+        dual_traj.joint_trajectory.joint_names = [f"openarm_left_joint{i + 1}" for i in range(7)] + \
+                                                 [f"openarm_right_joint{i + 1}" for i in range(7)]
+
+        for pt in left_traj.joint_trajectory.points:
+            left_pos = pt.positions
+            if len(left_pos) != 7: continue
+
+            right_pos = [-left_pos[0], -left_pos[1], -left_pos[2], left_pos[3], -left_pos[4], -left_pos[5],
+                         -left_pos[6]]
+
+            new_pt = JointTrajectoryPoint()
+            new_pt.positions = list(left_pos) + right_pos
+            dual_traj.joint_trajectory.points.append(new_pt)
+
+        return dual_traj
+
+    def reverse_trajectory(self, traj: RobotTrajectory):
+        rev_traj = RobotTrajectory()
+        rev_traj.joint_trajectory.header = traj.joint_trajectory.header
+        rev_traj.joint_trajectory.joint_names = traj.joint_trajectory.joint_names
+
+        reversed_points = list(reversed(traj.joint_trajectory.points))
+        for pt in reversed_points:
+            new_pt = JointTrajectoryPoint()
+            new_pt.positions = list(pt.positions)
+            rev_traj.joint_trajectory.points.append(new_pt)
+
+        return rev_traj
+
+    def execute_by_streaming(self, dual_trajectory):
+        if not dual_trajectory.joint_trajectory.points:
             return
 
-        names = planned_trajectory.joint_trajectory.joint_names
+        names = dual_trajectory.joint_trajectory.joint_names
         idx_l = [i for i, n in enumerate(names) if "left" in n]
         idx_r = [i for i, n in enumerate(names) if "right" in n]
         names_l = [names[i] for i in idx_l]
         names_r = [names[i] for i in idx_r]
 
-        all_pts = [pt.positions for pt in planned_trajectory.joint_trajectory.points]
+        all_pts = [pt.positions for pt in dual_trajectory.joint_trajectory.points]
         stream_pts = []
         last_p = all_pts[0]
         stream_pts.append(last_p)
-
 
         STEP_RAD = 0.02
 
@@ -282,7 +316,7 @@ class MoveDualArmHybrid(Node):
 
         stream_pts.append(all_pts[-1])
 
-        self.get_logger().info(f"==> Streaming {len(stream_pts)} points ...")
+        self.get_logger().info(f"==> Streaming {len(stream_pts)} dual-points ...")
 
         for p in stream_pts:
             if not rclpy.ok():
@@ -292,7 +326,7 @@ class MoveDualArmHybrid(Node):
             msg_l.joint_names = names_l
             pt_l = JointTrajectoryPoint()
             pt_l.positions = [p[i] for i in idx_l]
-            pt_l.time_from_start.sec = 0
+            pt_l.time_from_start.sec = 0;
             pt_l.time_from_start.nanosec = 0
             msg_l.points.append(pt_l)
 
@@ -300,75 +334,135 @@ class MoveDualArmHybrid(Node):
             msg_r.joint_names = names_r
             pt_r = JointTrajectoryPoint()
             pt_r.positions = [p[i] for i in idx_r]
-            pt_r.time_from_start.sec = 0
+            pt_r.time_from_start.sec = 0;
             pt_r.time_from_start.nanosec = 0
             msg_r.points.append(pt_r)
 
             self.left_arm_pub.publish(msg_l)
             self.right_arm_pub.publish(msg_r)
-
             time.sleep(0.02)
 
     # ============================================================
-    # BACKGROUND THREAD
+    # BACKGROUND THREAD (XỬ LÝ CHUỖI NHIỆM VỤ)
     # ============================================================
     def planning_thread(self):
-        self.get_logger().info("Waiting MoveIt Service/Action ...")
-        self.move_client.wait_for_server()
-        self.ik_client.wait_for_service()
-        self.scene_client.wait_for_service()
+        if self.RUN_MODE == "PLAN":
+            self.get_logger().info("Waiting MoveIt Service/Action ...")
+            self.move_client.wait_for_server()
+            self.ik_client.wait_for_service()
+            self.scene_client.wait_for_service()
 
         while self.current_joint_state is None and rclpy.ok():
             time.sleep(0.1)
 
-        self.get_logger().info("--- CLEANING SCENE ---")
-        self.manage_attached_object_sync(attach=False)
-        time.sleep(1.0)
+        total_tasks = len(self.TASKS)
 
-        self.get_logger().info("--- STARTING PICK & PLACE (STREAMING HYBRID) ---")
-        is_holding = False
-
-        for i in range(len(self.left_targets)):
+        for task_idx, task in enumerate(self.TASKS):
             if not rclpy.ok(): break
-            self.get_logger().info(f"\n--- Planning {i + 1}/{len(self.left_targets)} ---")
 
-            # 1. Split Tag
-            t_left, tag_l = self.parse_target(self.left_targets[i])
-            t_right, tag_r = self.parse_target(self.right_targets[i])
-            tag = tag_l or tag_r
+            csv_path = task["csv_path"]
+            close_pose = task["close_pose"]
 
-            # 2. Compute IK
-            end_l = t_left if isinstance(t_left, list) else self.compute_ik_sync("left_arm", "openarm_left_tcp", t_left)
-            end_r = t_right if isinstance(t_right, list) else self.compute_ik_sync("right_arm", "openarm_right_tcp",
-                                                                                   t_right)
+            print("\n\033[96m" + "=" * 50)
+            print(f" STARTING TASK {task_idx + 1}/{total_tasks}: {csv_path} ")
+            print("=" * 50 + "\033[0m\n")
 
-            if end_l is None or end_r is None:
-                self.get_logger().error(f"Error IK at {i + 1}.")
-                return
+            # Tay chỉ mở ra ở đầu mỗi chu trình, không về lại Home nếu task_idx > 0
+            self.control_hands(close=False)
+            time.sleep(2.0)
 
-            # 3. Compute trajectory
-            trajectory = self.plan_segment_sync(end_l, end_r)
-            if not trajectory:
-                self.get_logger().error(f"Error trajectory at {i + 1}.")
-                return
+            saved_trajectories = []
 
-            # 4. Send topic
-            self.execute_by_streaming(trajectory)
+            # LOAD HOẶC PLAN CHO TASK HIỆN TẠI
+            if self.RUN_MODE == "LOAD":
+                loaded = self.load_from_csv(csv_path)
+                if loaded is None:
+                    self.get_logger().error(f"Skipping task {csv_path} because file not found.")
+                    continue
+                saved_trajectories = loaded
 
-            # 5. Logic open-close hand
-            if tag == "HOLD" and not is_holding:
-                self.control_hands(close=True)
-                time.sleep(0.25)
-                self.manage_attached_object_sync(attach=True)
-                is_holding = True
+            # --- STAGE 1: ĐI LẤY ĐỒ ---
+            self.get_logger().info(f"--- STAGE 1: PLANNING/STREAMING ---")
 
-            elif tag == "DROP" and is_holding:
-                self.manage_attached_object_sync(attach=False)
-                self.control_hands(close=False)
-                time.sleep(0.25)
-                is_holding = False
+            # NẾU LÀ TASK ĐẦU TIÊN: Bắt đầu từ 0 (Current -> Home)
+            # NẾU LÀ TASK TIẾP THEO: Bỏ qua 0 và 1, Bắt đầu từ 2 (Raise Hand -> Pre-Pick)
+            start_idx = 0 if task_idx == 0 else 2
 
-        self.get_logger().info("--- FINISH! ---")
+            for i in range(start_idx, len(self.left_targets)):
+                if not rclpy.ok(): break
+                self.get_logger().info(f"--- Processing segment {i} -> {i + 1} ---")
+
+                t_left, tag = self.parse_target(self.left_targets[i])
+
+                if self.RUN_MODE == "PLAN":
+                    end_l = t_left if isinstance(t_left, list) else self.compute_ik_left_sync(t_left)
+                    if end_l is None: return
+                    left_trajectory = self.plan_left_segment_sync(end_l)
+                    if not left_trajectory: return
+                    dual_trajectory = self.mirror_left_trajectory_to_dual(left_trajectory)
+                    saved_trajectories.append(dual_trajectory)
+                else:
+                    if i < len(saved_trajectories):
+                        dual_trajectory = saved_trajectories[i]
+                    else:
+                        self.get_logger().error("File CSV doesn't have enough segments!")
+                        break
+
+                self.execute_by_streaming(dual_trajectory)
+
+                # Kiểm tra TAG và thực hiện hành động kẹp tay
+                if tag == "HOLD" or tag == "CLOSE_HAND":
+                    self.control_hands(close=True, custom_close_pose=close_pose)
+                    time.sleep(2.0)
+
+                elif tag == "WAIT_ENTER":
+                    if self.RUN_MODE == "PLAN":
+                        self.save_to_csv(csv_path, saved_trajectories)
+
+                    print("\n\033[93m" + "=" * 50)
+                    print(" Đã nhấc vật lên! Nhấn Enter để bắt đầu lùi lại thả vật... ")
+                    print("=" * 50 + "\033[0m\n")
+                    input()
+                    break
+
+            # --- STAGE 2: CẤT ĐỒ VÀ LÙI LẠI ---
+            self.get_logger().info("--- STAGE 2: REVERSE MOTION ---")
+
+            # 1. Hạ tay xuống vị trí Pick (Lùi của đoạn Lift -> Pick)
+            print("\033[92m---> Hạ vật xuống vị trí Pick...\033[0m")
+            traj_lift_to_pick = self.reverse_trajectory(saved_trajectories[-1])
+            self.execute_by_streaming(traj_lift_to_pick)
+
+            # Mở tay ra để thả vật (Chỉ gọi 1 lần ở đây thay vì nhét trong vòng lặp)
+            self.control_hands(close=False)
+            time.sleep(1.5)
+
+            # 2. Xử lý đoạn lùi tiếp theo (Từ Pick lùi ra)
+            is_last_task = (task_idx == total_tasks - 1)
+
+            if is_last_task:
+                print("\033[92m---> Task cuối cùng! Lùi toàn bộ về Home...\033[0m")
+                # Nếu là task cuối, lùi về tận index 0 (về tới Home)
+                stop_idx = -1
+            else:
+                print("\033[92m---> Lùi về vị trí Raise Hand (Chuẩn bị cho task tiếp theo)...\033[0m")
+                # Nếu chưa phải task cuối, chỉ lùi tới index 2 (Pre-pick -> Raise Hand). Dừng ở Raise Hand!
+                stop_idx = 1
+
+            for idx in range(len(saved_trajectories) - 2, stop_idx, -1):
+                if not rclpy.ok(): break
+                rev_traj = self.reverse_trajectory(saved_trajectories[idx])
+                self.execute_by_streaming(rev_traj)
+
+            self.get_logger().info(f"--- TASK {task_idx + 1} FINISHED! ---")
+
+            if not is_last_task:
+                print("\n\033[93m" + "=" * 50)
+                print(" Nhấn Enter để bắt đầu Load File tiếp theo... ")
+                print("=" * 50 + "\033[0m\n")
+                input()
+
+        self.get_logger().info("--- ALL TASKS COMPLETED! ---")
 
 
 def main():

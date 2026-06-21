@@ -36,7 +36,7 @@ class MoveDualArmHybrid(Node):
         # ==========================================
         # self.RUN_MODE = "PLAN"
         self.RUN_MODE = "LOAD"
-        self.CSV_PATH = "planned_trajectory.csv"
+        self.CSV_PATH = "40dg.csv"
         # ==========================================
 
         self.cb_group = ReentrantCallbackGroup()
@@ -53,8 +53,8 @@ class MoveDualArmHybrid(Node):
             JointState, "/joint_states", self.joint_state_callback, 10, callback_group=self.cb_group)
 
         # Topic for hands
-        self.right_hand_pub = self.create_publisher(JointTrajectory, "/right_hand_controller/joint_trajectory", 10)
-        self.left_hand_pub = self.create_publisher(JointTrajectory, "/left_hand_controller/joint_trajectory", 10)
+        self.right_hand_pub = self.create_publisher(JointTrajectory, "/right_revo2_hand_controller/joint_trajectory", 10)
+        self.left_hand_pub = self.create_publisher(JointTrajectory, "/left_revo2_hand_controller/joint_trajectory", 10)
 
         # Topic Streaming for arms
         self.left_arm_pub = self.create_publisher(JointTrajectory, "/left_joint_trajectory_controller/joint_trajectory",
@@ -81,13 +81,15 @@ class MoveDualArmHybrid(Node):
             return p
 
         qx, qy, qz, qw = 0.71, 0.0, 0.71, 0.0
+        # qx2, qy2, qz2, qw2 = 0.965926, 0.0, 0.258819, 0.0
+        qx2, qy2, qz2, qw2 = 0.939693, 0.0, 0.342020, 0.0
 
         left_forward = [
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 0. Home
-            create_pose(0.014604, 0.1535, 0.40, qx, qy, qz, qw), # 1. Raise hand
-            create_pose(0.30, 0.13, 0.40, qx, qy, qz, qw),         # 2. Pre-pick
-            (create_pose(0.30, 0.08, 0.40, qx, qy, qz, qw), "HOLD"),  # 3. Pick
-            (create_pose(0.30, 0.08, 0.50, qx, qy, qz, qw), "WAIT_ENTER"), # 4. Lift
+            (create_pose(0.014604, 0.1535, 0.35, qx, qy, qz, qw)), # 1. Raise hand
+            (create_pose(0.30, 0.23, 0.35, qx2, qy2, qz2, qw2), "CLOSE_HAND"),         # 2. Pre-pick
+            (create_pose(0.30, 0.16, 0.35, qx2, qy2, qz2, qw2)),  # 3. Pick
+            (create_pose(0.30, 0.16, 0.40, qx2, qy2, qz2, qw2), "WAIT_ENTER"), # 4. Lift
         ]
         return left_forward
 
@@ -112,10 +114,12 @@ class MoveDualArmHybrid(Node):
         point = JointTrajectoryPoint()
         if close:
             self.get_logger().info("Closing hands ...")
-            point.positions = [0.0, 0.0, 0.5, 0.5, 0.5, 0.5]
+            point.positions = [1.1, 0.0, 0.4, 0.7, 0.9, 1.0]
+            # point.positions = [0.0, 0.0, 0.5, 0.6, 0.6, 0.5]
         else:
             self.get_logger().info("Opening hands ...")
-            point.positions = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+            point.positions = [1.1, 0.0, 0.0, 0.0, 0.0, 0.0]
+            # point.positions = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
         point.time_from_start.sec = 1
         msg_right.points.append(point)
@@ -353,8 +357,8 @@ class MoveDualArmHybrid(Node):
         while self.current_joint_state is None and rclpy.ok():
             time.sleep(0.1)
 
-        # self.control_hands(close=False)
-        # time.sleep(0.5)
+        self.control_hands(close=False)
+        time.sleep(2.0)
 
         self.get_logger().info(f"--- STAGE 1: PLANNING (MODE: {self.RUN_MODE}) ---")
 
@@ -394,9 +398,9 @@ class MoveDualArmHybrid(Node):
 
             self.execute_by_streaming(dual_trajectory)
 
-            if tag == "HOLD":
+            if tag == "HOLD" or tag == "CLOSE_HAND":
                 self.control_hands(close=True)
-                time.sleep(0.5)
+                time.sleep(2.0)
 
             elif tag == "WAIT_ENTER":
                 if self.RUN_MODE == "PLAN":
@@ -416,12 +420,13 @@ class MoveDualArmHybrid(Node):
         self.execute_by_streaming(traj_lift_to_pick)
 
         # 2.(DROP)
-        self.control_hands(close=False)
-        time.sleep(0.5)
+
 
         # 3. Move to home
         print("\033[92m---> Reverse arm to come Home...\033[0m")
         for idx in range(len(saved_trajectories) - 2, -1, -1):
+            self.control_hands(close=False)
+            # time.sleep(2.0)
             rev_traj = self.reverse_trajectory(saved_trajectories[idx])
             self.execute_by_streaming(rev_traj)
 

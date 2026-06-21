@@ -22,7 +22,6 @@ limitations under the License.
              use_fake_hardware:=^|true
              fake_sensor_commands:=^|false
              hand:=^|true
-             ee_type:=^|parallel_link
              left_arm_prefix:=^|left_
              right_arm_prefix:=^|right_
              can_fd:=^|true">
@@ -42,7 +41,6 @@ limitations under the License.
             <param name="arm_prefix">${left_arm_prefix}</param>
             <param name="hand">${hand}</param>
             <param name="can_fd">${can_fd}</param>
-            <param name="ee_type">${ee_type}</param>
             <param name="urdf_path">$(find openarm_description)/assets/robot/openarm_v1.0/urdf/openarm_v10.urdf</param>
             <param name="kp1">${control_gains['joint1']['kp']}</param>
             <param name="kp2">${control_gains['joint2']['kp']}</param>
@@ -92,10 +90,6 @@ limitations under the License.
       <xacro:configure_joint joint_name="openarm_${left_arm_prefix}joint5" initial_position="0.0"/>
       <xacro:configure_joint joint_name="openarm_${left_arm_prefix}joint6" initial_position="0.0"/>
       <xacro:configure_joint joint_name="openarm_${left_arm_prefix}joint7" initial_position="0.0"/>
-
-      <xacro:if value="${hand}">
-        <xacro:configure_joint joint_name="openarm_${left_arm_prefix}finger_joint1" initial_position="0.0" />
-      </xacro:if>
     </ros2_control>
 
     <!-- Right Arm Hardware Interface -->
@@ -113,7 +107,6 @@ limitations under the License.
             <param name="arm_prefix">${right_arm_prefix}</param>
             <param name="hand">${hand}</param>
             <param name="can_fd">${can_fd}</param>
-            <param name="ee_type">${ee_type}</param>
             <param name="urdf_path">$(find openarm_description)/assets/robot/openarm_v1.0/urdf/openarm_v10.urdf</param>
             <param name="kp1">${control_gains['joint1']['kp']}</param>
             <param name="kp2">${control_gains['joint2']['kp']}</param>
@@ -143,10 +136,6 @@ limitations under the License.
       <xacro:configure_joint joint_name="openarm_${right_arm_prefix}joint5" initial_position="0.0"/>
       <xacro:configure_joint joint_name="openarm_${right_arm_prefix}joint6" initial_position="0.0"/>
       <xacro:configure_joint joint_name="openarm_${right_arm_prefix}joint7" initial_position="0.0"/>
-
-      <xacro:if value="${hand}">
-        <xacro:configure_joint joint_name="openarm_${right_arm_prefix}finger_joint1" initial_position="0.0" />
-      </xacro:if>
     </ros2_control>
 
   </xacro:macro>
