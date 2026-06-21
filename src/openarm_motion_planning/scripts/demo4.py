@@ -36,7 +36,7 @@ class MoveDualArmHybrid(Node):
         # ==========================================
         # self.RUN_MODE = "PLAN"
         self.RUN_MODE = "LOAD"
-        self.CSV_PATH = "40dg.csv"
+        self.CSV_PATH = "trajectory.csv"
         # ==========================================
 
         self.cb_group = ReentrantCallbackGroup()
@@ -81,12 +81,14 @@ class MoveDualArmHybrid(Node):
             return p
 
         qx, qy, qz, qw = 0.71, 0.0, 0.71, 0.0
+        # qx2, qy2, qz2, qw2 = 0.71, 0.0, 0.71, 0.0
         # qx2, qy2, qz2, qw2 = 0.965926, 0.0, 0.258819, 0.0
         qx2, qy2, qz2, qw2 = 0.939693, 0.0, 0.342020, 0.0
 
         left_forward = [
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 0. Home
             (create_pose(0.014604, 0.1535, 0.35, qx, qy, qz, qw)), # 1. Raise hand
+            (create_pose(0.25, 0.23, 0.40, qx, qy, qz, qw)),
             (create_pose(0.30, 0.23, 0.35, qx2, qy2, qz2, qw2), "CLOSE_HAND"),         # 2. Pre-pick
             (create_pose(0.30, 0.16, 0.35, qx2, qy2, qz2, qw2)),  # 3. Pick
             (create_pose(0.30, 0.16, 0.40, qx2, qy2, qz2, qw2), "WAIT_ENTER"), # 4. Lift
@@ -114,7 +116,7 @@ class MoveDualArmHybrid(Node):
         point = JointTrajectoryPoint()
         if close:
             self.get_logger().info("Closing hands ...")
-            point.positions = [1.1, 0.0, 0.4, 0.7, 0.9, 1.0]
+            point.positions = [1.1, 0.0, 0.0, 0.0, 0.0, 0.0]
             # point.positions = [0.0, 0.0, 0.5, 0.6, 0.6, 0.5]
         else:
             self.get_logger().info("Opening hands ...")

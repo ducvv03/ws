@@ -1,116 +1,77 @@
 #!/usr/bin/env python3
 
 import sys
-import math
 import threading
 import time
-import copy
 import csv
 import os
 
 import rclpy
 from rclpy.node import Node
-from rclpy.action import ActionClient
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 
-from geometry_msgs.msg import Pose
 from sensor_msgs.msg import JointState
-from shape_msgs.msg import SolidPrimitive
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-
-from moveit_msgs.action import MoveGroup
-from moveit_msgs.msg import (
-    Constraints, JointConstraint, MoveItErrorCodes, RobotState,
-    AttachedCollisionObject, CollisionObject, RobotTrajectory
-)
-from moveit_msgs.srv import GetPositionIK, ApplyPlanningScene
+from moveit_msgs.msg import RobotTrajectory
 
 
-class MoveDualArmHybrid(Node):
+class PlaybackDualArmHybrid(Node):
     def __init__(self):
-        super().__init__("move_dual_arm_hybrid")
+        super().__init__("playback_dual_arm_hybrid")
 
         # ==========================================
-        # PLAN or LOAD mode
+        # DANH SÁCH FILE CSV VÀ CẤU HÌNH TAY
         # ==========================================
-        self.RUN_MODE = "LOAD"
-
-        # Danh sách các file CSV và pose tay tương ứng
         self.TASKS = [
             {
-                "csv_path": "40dg.csv",
-                "close_pose": [1.0, 0.0, 0.4, 0.7, 0.9, 1.0]  # Pose nắm cho file 1
+                "csv_path": "40dg_new.csv",
+                "close_pose": [1.0, 0.0, 0.4, 0.7, 0.9, 1.0],  # Pose nắm cho file 1
+                "forward_actions": {
+                    0: "open",
+                    3: "close"  # Khi ĐI TIẾN, chạy xong index 3 -> Đóng tay
+                },
+                "reverse_actions": {
+                    5: "open"  # Khi ĐI LÙI, lùi xong index 4 (Hạ đồ xuống) -> Mở tay thả đồ
+                }
             },
             {
                 "csv_path": "12cm.csv",
-                "close_pose": [1.0, 0.0, 0.7, 0.6, 0.6, 0.7]  # Pose nắm cho file 2
+                "close_pose": [1.0, 0.0, 0.7, 0.6, 0.6, 0.7],  # Pose nắm cho file 2
+                "forward_actions": {
+                    3: "close"
+                },
+                "reverse_actions": {
+                    4: "open"
+                }
             }
         ]
         # ==========================================
 
         self.cb_group = ReentrantCallbackGroup()
 
-        # 1. Clients
-        self.move_client = ActionClient(self, MoveGroup, "/move_action", callback_group=self.cb_group)
-        self.ik_client = self.create_client(GetPositionIK, "/compute_ik", callback_group=self.cb_group)
-        self.scene_client = self.create_client(ApplyPlanningScene, "/apply_planning_scene",
-                                               callback_group=self.cb_group)
-
-        # 2. State & Publishers
+        # State Subscriber
         self.current_joint_state = None
         self.js_sub = self.create_subscription(
             JointState, "/joint_states", self.joint_state_callback, 10, callback_group=self.cb_group)
 
-        # Topic for hands
-        self.right_hand_pub = self.create_publisher(JointTrajectory, "/right_revo2_hand_controller/joint_trajectory",
-                                                    10)
+        # Publishers for Hands
+        self.right_hand_pub = self.create_publisher(JointTrajectory, "/right_revo2_hand_controller/joint_trajectory", 10)
         self.left_hand_pub = self.create_publisher(JointTrajectory, "/left_revo2_hand_controller/joint_trajectory", 10)
 
-        # Topic Streaming for arms
-        self.left_arm_pub = self.create_publisher(JointTrajectory, "/left_joint_trajectory_controller/joint_trajectory",
-                                                  10)
-        self.right_arm_pub = self.create_publisher(JointTrajectory,
-                                                   "/right_joint_trajectory_controller/joint_trajectory", 10)
+        # Publishers for Arms (Streaming)
+        self.left_arm_pub = self.create_publisher(JointTrajectory, "/left_joint_trajectory_controller/joint_trajectory", 10)
+        self.right_arm_pub = self.create_publisher(JointTrajectory, "/right_joint_trajectory_controller/joint_trajectory", 10)
 
-        # 3. Targets
-        self.left_targets = self.define_targets()
+        self.get_logger().info("=== DUAL ARM CSV PLAYBACK ENGINE STARTED ===")
 
-    # ============================================================
-    # DEFINE POSE
-    # ============================================================
-    def define_targets(self):
-        def create_pose(x, y, z, qx, qy, qz, qw):
-            p = Pose()
-            p.position.x = x;
-            p.position.y = y;
-            p.position.z = z
-            p.orientation.x = qx;
-            p.orientation.y = qy;
-            p.orientation.z = qz;
-            p.orientation.w = qw
-            return p
-
-        qx, qy, qz, qw = 0.71, 0.0, 0.71, 0.0
-        qx2, qy2, qz2, qw2 = 0.939693, 0.0, 0.342020, 0.0
-
-        left_forward = [
-            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 0. Home
-            (create_pose(0.014604, 0.1535, 0.35, qx, qy, qz, qw)),  # 1. Raise hand
-            (create_pose(0.30, 0.23, 0.35, qx2, qy2, qz2, qw2), "CLOSE_HAND"),  # 2. Pre-pick
-            (create_pose(0.30, 0.16, 0.35, qx2, qy2, qz2, qw2)),  # 3. Pick
-            (create_pose(0.30, 0.16, 0.40, qx2, qy2, qz2, qw2), "WAIT_ENTER"),  # 4. Lift
-        ]
-        return left_forward
 
     def joint_state_callback(self, msg):
         self.current_joint_state = msg
 
-    def parse_target(self, target):
-        if isinstance(target, tuple) and len(target) == 2:
-            return target[0], target[1]
-        return target, None
-
+    # ============================================================
+    # HAND CONTROL
+    # ============================================================
     def control_hands(self, close=True, custom_close_pose=None):
         msg_right = JointTrajectory()
         msg_left = JointTrajectory()
@@ -139,36 +100,13 @@ class MoveDualArmHybrid(Node):
         self.right_hand_pub.publish(msg_right)
         self.left_hand_pub.publish(msg_left)
 
-    def _wait_for_future(self, future):
-        while rclpy.ok() and not future.done():
-            time.sleep(0.01)
-        return future.result() if future.done() else None
-
     # ============================================================
-    # SAVE & LOAD CSV
+    # LOAD CSV
     # ============================================================
-    def save_to_csv(self, filename, trajectories):
-        try:
-            with open(filename, mode='w', newline='') as f:
-                writer = csv.writer(f)
-                header = ["segment_idx"] + \
-                         [f"openarm_left_joint{i + 1}" for i in range(7)] + \
-                         [f"openarm_right_joint{i + 1}" for i in range(7)]
-                writer.writerow(header)
-
-                for seg_idx, traj in enumerate(trajectories):
-                    for pt in traj.joint_trajectory.points:
-                        row = [seg_idx] + list(pt.positions)
-                        writer.writerow(row)
-
-            self.get_logger().info(f"Saved {len(trajectories)} trajectories into: {filename}")
-        except Exception as e:
-            self.get_logger().error(f"Error when save CSV: {e}")
-
     def load_from_csv(self, filename):
         trajectories = []
         if not os.path.exists(filename):
-            self.get_logger().error(f"File {filename} doesnt exist!")
+            self.get_logger().error(f"File {filename} doesn't exist!")
             return None
 
         try:
@@ -200,78 +138,15 @@ class MoveDualArmHybrid(Node):
                 if current_traj is not None:
                     trajectories.append(current_traj)
 
-            self.get_logger().info(f"Loaded {len(trajectories)} trajectories from: {filename}")
+            self.get_logger().info(f"Loaded {len(trajectories)} segments from: {filename}")
             return trajectories
         except Exception as e:
             self.get_logger().error(f"Error when read CSV: {e}")
             return None
 
     # ============================================================
-    # COMPUTE IK & PLANNING
+    # REVERSE MOTION UTILITY
     # ============================================================
-    def compute_ik_left_sync(self, target_pose):
-        req = GetPositionIK.Request()
-        req.ik_request.group_name = "left_arm"
-        req.ik_request.ik_link_name = "openarm_left_tcp"
-        req.ik_request.pose_stamped.header.frame_id = "openarm_body_link0"
-        req.ik_request.pose_stamped.pose = target_pose
-        req.ik_request.avoid_collisions = True
-
-        if self.current_joint_state is not None:
-            req.ik_request.robot_state.joint_state = self.current_joint_state
-
-        res = self._wait_for_future(self.ik_client.call_async(req))
-        if res is None or res.error_code.val != MoveItErrorCodes.SUCCESS:
-            return None
-
-        joints = [pos for name, pos in zip(res.solution.joint_state.name, res.solution.joint_state.position)
-                  if "openarm_left" in name and "finger" not in name]
-        return joints
-
-    def plan_left_segment_sync(self, end_l):
-        goal = MoveGroup.Goal()
-        goal.request.group_name = "left_arm"
-        goal.request.allowed_planning_time = 5.0
-        goal.planning_options.plan_only = True
-
-        c = Constraints()
-        for i, pos in enumerate(end_l):
-            c.joint_constraints.append(
-                JointConstraint(joint_name=f"openarm_left_joint{i + 1}", position=pos, tolerance_above=0.01,
-                                tolerance_below=0.01, weight=1.0))
-        goal.request.goal_constraints.append(c)
-
-        goal_handle = self._wait_for_future(self.move_client.send_goal_async(goal))
-        if not goal_handle or not goal_handle.accepted:
-            return None
-
-        result_wrapper = self._wait_for_future(goal_handle.get_result_async())
-        if result_wrapper is None: return None
-
-        result = result_wrapper.result
-        if result.error_code.val != MoveItErrorCodes.SUCCESS:
-            return None
-
-        return result.planned_trajectory
-
-    def mirror_left_trajectory_to_dual(self, left_traj):
-        dual_traj = RobotTrajectory()
-        dual_traj.joint_trajectory.joint_names = [f"openarm_left_joint{i + 1}" for i in range(7)] + \
-                                                 [f"openarm_right_joint{i + 1}" for i in range(7)]
-
-        for pt in left_traj.joint_trajectory.points:
-            left_pos = pt.positions
-            if len(left_pos) != 7: continue
-
-            right_pos = [-left_pos[0], -left_pos[1], -left_pos[2], left_pos[3], -left_pos[4], -left_pos[5],
-                         -left_pos[6]]
-
-            new_pt = JointTrajectoryPoint()
-            new_pt.positions = list(left_pos) + right_pos
-            dual_traj.joint_trajectory.points.append(new_pt)
-
-        return dual_traj
-
     def reverse_trajectory(self, traj: RobotTrajectory):
         rev_traj = RobotTrajectory()
         rev_traj.joint_trajectory.header = traj.joint_trajectory.header
@@ -285,6 +160,9 @@ class MoveDualArmHybrid(Node):
 
         return rev_traj
 
+    # ============================================================
+    # STREAMING TOPIC
+    # ============================================================
     def execute_by_streaming(self, dual_trajectory):
         if not dual_trajectory.joint_trajectory.points:
             return
@@ -326,16 +204,14 @@ class MoveDualArmHybrid(Node):
             msg_l.joint_names = names_l
             pt_l = JointTrajectoryPoint()
             pt_l.positions = [p[i] for i in idx_l]
-            pt_l.time_from_start.sec = 0;
-            pt_l.time_from_start.nanosec = 0
+            pt_l.time_from_start.sec = 0; pt_l.time_from_start.nanosec = 0
             msg_l.points.append(pt_l)
 
             msg_r = JointTrajectory()
             msg_r.joint_names = names_r
             pt_r = JointTrajectoryPoint()
             pt_r.positions = [p[i] for i in idx_r]
-            pt_r.time_from_start.sec = 0;
-            pt_r.time_from_start.nanosec = 0
+            pt_r.time_from_start.sec = 0; pt_r.time_from_start.nanosec = 0
             msg_r.points.append(pt_r)
 
             self.left_arm_pub.publish(msg_l)
@@ -343,15 +219,10 @@ class MoveDualArmHybrid(Node):
             time.sleep(0.02)
 
     # ============================================================
-    # BACKGROUND THREAD (XỬ LÝ CHUỖI NHIỆM VỤ)
+    # MAIN EXECUTION THREAD
     # ============================================================
-    def planning_thread(self):
-        if self.RUN_MODE == "PLAN":
-            self.get_logger().info("Waiting MoveIt Service/Action ...")
-            self.move_client.wait_for_server()
-            self.ik_client.wait_for_service()
-            self.scene_client.wait_for_service()
-
+    def execution_thread(self):
+        # Đợi hệ thống có dữ liệu joint state
         while self.current_joint_state is None and rclpy.ok():
             time.sleep(0.1)
 
@@ -361,101 +232,98 @@ class MoveDualArmHybrid(Node):
             if not rclpy.ok(): break
 
             csv_path = task["csv_path"]
-            close_pose = task["close_pose"]
+            close_pose = task.get("close_pose", [])
+            fw_actions = task.get("forward_actions", {})
+            rv_actions = task.get("reverse_actions", {})
 
             print("\n\033[96m" + "=" * 50)
             print(f" STARTING TASK {task_idx + 1}/{total_tasks}: {csv_path} ")
             print("=" * 50 + "\033[0m\n")
 
-            # Tay chỉ mở ra ở đầu mỗi chu trình, không về lại Home nếu task_idx > 0
+            # Mở tay ở đầu mỗi Task (Đảm bảo an toàn)
             self.control_hands(close=False)
-            time.sleep(2.0)
+            time.sleep(1.0)
 
-            saved_trajectories = []
+            # 1. LOAD CSV
+            saved_trajectories = self.load_from_csv(csv_path)
+            if saved_trajectories is None:
+                self.get_logger().error(f"Skipping task {csv_path} because file not found or invalid.")
+                continue
 
-            # LOAD HOẶC PLAN CHO TASK HIỆN TẠI
-            if self.RUN_MODE == "LOAD":
-                loaded = self.load_from_csv(csv_path)
-                if loaded is None:
-                    self.get_logger().error(f"Skipping task {csv_path} because file not found.")
-                    continue
-                saved_trajectories = loaded
+            num_segments = len(saved_trajectories)
 
-            # --- STAGE 1: ĐI LẤY ĐỒ ---
-            self.get_logger().info(f"--- STAGE 1: PLANNING/STREAMING ---")
+            # --- STAGE 1: FORWARD (TIẾN) ---
+            self.get_logger().info(f"--- STAGE 1: FORWARD STREAMING ---")
 
-            # NẾU LÀ TASK ĐẦU TIÊN: Bắt đầu từ 0 (Current -> Home)
-            # NẾU LÀ TASK TIẾP THEO: Bỏ qua 0 và 1, Bắt đầu từ 2 (Raise Hand -> Pre-Pick)
+            # Nếu là Task đầu tiên: chạy từ segment 0. Từ Task 2 trở đi: chạy từ segment 2.
             start_idx = 0 if task_idx == 0 else 2
 
-            for i in range(start_idx, len(self.left_targets)):
+            for i in range(start_idx, num_segments):
                 if not rclpy.ok(): break
                 self.get_logger().info(f"--- Processing segment {i} -> {i + 1} ---")
 
-                t_left, tag = self.parse_target(self.left_targets[i])
-
-                if self.RUN_MODE == "PLAN":
-                    end_l = t_left if isinstance(t_left, list) else self.compute_ik_left_sync(t_left)
-                    if end_l is None: return
-                    left_trajectory = self.plan_left_segment_sync(end_l)
-                    if not left_trajectory: return
-                    dual_trajectory = self.mirror_left_trajectory_to_dual(left_trajectory)
-                    saved_trajectories.append(dual_trajectory)
-                else:
-                    if i < len(saved_trajectories):
-                        dual_trajectory = saved_trajectories[i]
-                    else:
-                        self.get_logger().error("File CSV doesn't have enough segments!")
-                        break
-
+                # Chạy quỹ đạo
+                dual_trajectory = saved_trajectories[i]
                 self.execute_by_streaming(dual_trajectory)
 
-                # Kiểm tra TAG và thực hiện hành động kẹp tay
-                if tag == "HOLD" or tag == "CLOSE_HAND":
-                    self.control_hands(close=True, custom_close_pose=close_pose)
-                    time.sleep(2.0)
+                # Xử lý đóng/mở bàn tay
+                if i in fw_actions:
+                    action = fw_actions[i]
+                    if action == "close":
+                        self.control_hands(close=True, custom_close_pose=close_pose)
+                    elif action == "open":
+                        self.control_hands(close=False)
+                    time.sleep(1.5)  # Chờ tay hoàn thành thao tác
 
-                elif tag == "WAIT_ENTER":
-                    if self.RUN_MODE == "PLAN":
-                        self.save_to_csv(csv_path, saved_trajectories)
-
+                # Nếu là segment cuối cùng của Lượt đi -> Chờ xác nhận
+                if i == num_segments - 1:
                     print("\n\033[93m" + "=" * 50)
-                    print(" Đã nhấc vật lên! Nhấn Enter để bắt đầu lùi lại thả vật... ")
+                    print(" Đã đi hết quỹ đạo! Nhấn Enter để bắt đầu quá trình lùi... ")
                     print("=" * 50 + "\033[0m\n")
                     input()
-                    break
 
-            # --- STAGE 2: CẤT ĐỒ VÀ LÙI LẠI ---
-            self.get_logger().info("--- STAGE 2: REVERSE MOTION ---")
 
-            # 1. Hạ tay xuống vị trí Pick (Lùi của đoạn Lift -> Pick)
-            print("\033[92m---> Hạ vật xuống vị trí Pick...\033[0m")
-            traj_lift_to_pick = self.reverse_trajectory(saved_trajectories[-1])
-            self.execute_by_streaming(traj_lift_to_pick)
+            # --- STAGE 2: REVERSE (LÙI) ---
+            self.get_logger().info("--- STAGE 2: REVERSE STREAMING ---")
 
-            # Mở tay ra để thả vật (Chỉ gọi 1 lần ở đây thay vì nhét trong vòng lặp)
-            
+            # 2.1: Lùi segment cuối cùng (Thường là hạ tay xuống)
+            print(f"\033[92m---> Reversing segment {num_segments - 1}...\033[0m")
+            traj_reverse_last = self.reverse_trajectory(saved_trajectories[-1])
+            self.execute_by_streaming(traj_reverse_last)
 
-            # 2. Xử lý đoạn lùi tiếp theo (Từ Pick lùi ra)
+            # Xử lý tay sau khi hạ đồ xuống (Segment cuối)
+            if (num_segments - 1) in rv_actions:
+                action = rv_actions[num_segments - 1]
+                if action == "close":
+                    self.control_hands(close=True, custom_close_pose=close_pose)
+                elif action == "open":
+                    self.control_hands(close=False)
+                time.sleep(1.5)
+
+            # 2.2: Các đoạn lùi tiếp theo
             is_last_task = (task_idx == total_tasks - 1)
 
             if is_last_task:
                 print("\033[92m---> Task cuối cùng! Lùi toàn bộ về Home...\033[0m")
-                # Nếu là task cuối, lùi về tận index 0 (về tới Home)
                 stop_idx = -1
             else:
                 print("\033[92m---> Lùi về vị trí Raise Hand (Chuẩn bị cho task tiếp theo)...\033[0m")
-                # Nếu chưa phải task cuối, chỉ lùi tới index 2 (Pre-pick -> Raise Hand). Dừng ở Raise Hand!
                 stop_idx = 1
 
-            
-
-            for idx in range(len(saved_trajectories) - 2, stop_idx, -1):
+            for idx in range(num_segments - 2, stop_idx, -1):
                 if not rclpy.ok(): break
+                print(f"\033[92m---> Reversing segment {idx}...\033[0m")
                 rev_traj = self.reverse_trajectory(saved_trajectories[idx])
                 self.execute_by_streaming(rev_traj)
-                self.control_hands(close=False)
-                time.sleep(1.5)
+
+                # Xử lý tay (nếu có định nghĩa cho segment lùi này)
+                if idx in rv_actions:
+                    action = rv_actions[idx]
+                    if action == "close":
+                        self.control_hands(close=True, custom_close_pose=close_pose)
+                    elif action == "open":
+                        self.control_hands(close=False)
+                    time.sleep(1.5)
 
             self.get_logger().info(f"--- TASK {task_idx + 1} FINISHED! ---")
 
@@ -470,13 +338,13 @@ class MoveDualArmHybrid(Node):
 
 def main():
     rclpy.init()
-    node = MoveDualArmHybrid()
+    node = PlaybackDualArmHybrid()
 
     executor = MultiThreadedExecutor()
     executor.add_node(node)
 
-    planning_thread = threading.Thread(target=node.planning_thread, daemon=True)
-    planning_thread.start()
+    exec_thread = threading.Thread(target=node.execution_thread, daemon=True)
+    exec_thread.start()
 
     try:
         executor.spin()
