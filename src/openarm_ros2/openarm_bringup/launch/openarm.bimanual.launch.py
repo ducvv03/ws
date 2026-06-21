@@ -32,11 +32,6 @@ VALID_ARM_TYPES = {
 
 
 def resolve_arm_config(arm_type_str: str) -> tuple[str, str]:
-    """
-    Resolve folder name and xacro file name from arm_type.
-    Accepts: v1.0, v10, v1_0, openarm_v1.0, openarm_v10, openarm_v1_0 (and v2.0 variants)
-    Raises ValueError if arm_type is not recognized.
-    """
     if arm_type_str not in VALID_ARM_TYPES:
         raise ValueError(
             f"Invalid arm_type: '{arm_type_str}'. "
@@ -70,6 +65,14 @@ def generate_robot_description(context: LaunchContext, description_package, desc
         "assets", "robot", folder_name, "urdf", file_name
     )
 
+    # --- [ĐÃ SỬA] TRÍCH XUẤT ĐƯỜNG DẪN CỦA HAND CONFIG ---
+    try:
+        brainco_driver_path = get_package_share_directory("brainco_hand_driver")
+        brainco_moveit_path = get_package_share_directory("brainco_moveit_config")
+    except Exception:
+        brainco_driver_path = ""
+        brainco_moveit_path = ""
+
     robot_description = xacro.process_file(
         xacro_path,
         mappings={
@@ -79,6 +82,10 @@ def generate_robot_description(context: LaunchContext, description_package, desc
             "ros2_control": "true",
             "right_can_interface": right_can_interface_str,
             "left_can_interface": left_can_interface_str,
+            # --- [ĐÃ SỬA] TRUYỀN ĐƯỜNG DẪN VÀO MAPPINGS ĐỂ XACRO KHÔNG BỊ LỖI ---
+            "left_protocol_config_file": os.path.join(brainco_driver_path, "config", "protocol_modbus_left.yaml"),
+            "right_protocol_config_file": os.path.join(brainco_driver_path, "config", "protocol_modbus_right.yaml"),
+            "initial_positions_file": os.path.join(brainco_moveit_path, "config", "dual_revo2_initial_positions.yaml"),
         }
     ).toprettyxml(indent="  ")
 
@@ -288,10 +295,8 @@ def generate_launch_description():
         declared_arguments + [
             robot_nodes_spawner_func,
             rviz_node,
-            TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[
-                        joint_state_broadcaster_spawner]),
-            TimerAction(period=LAUNCH_DELAY_SECONDS,
-                        actions=[controller_spawner_func]),
+            TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[joint_state_broadcaster_spawner]),
+            TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[controller_spawner_func]),
             TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[hand_controller_spawner]),
         ]
     )

@@ -40,11 +40,11 @@ class MoveDualArmHybrid(Node):
         self.TASKS = [
             {
                 "csv_path": "40dg.csv",
-                "close_pose": [1.1, 0.0, 0.4, 0.7, 0.9, 1.0]  # Pose nắm cho file 1
+                "close_pose": [1.0, 0.0, 0.4, 0.7, 0.9, 1.0]  # Pose nắm cho file 1
             },
             {
                 "csv_path": "12cm.csv",
-                "close_pose": [1.1, 0.0, 0.5, 0.6, 0.6, 0.5]  # Pose nắm cho file 2
+                "close_pose": [1.0, 0.0, 0.7, 0.6, 0.6, 0.7]  # Pose nắm cho file 2
             }
         ]
         # ==========================================
@@ -127,10 +127,10 @@ class MoveDualArmHybrid(Node):
             if custom_close_pose:
                 point.positions = custom_close_pose
             else:
-                point.positions = [1.1, 0.0, 0.4, 0.7, 0.9, 1.0]
+                point.positions = [1.0, 0.0, 0.4, 0.7, 0.9, 1.0]
         else:
             self.get_logger().info("Opening hands ...")
-            point.positions = [1.1, 0.0, 0.0, 0.0, 0.0, 0.0]
+            point.positions = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
         point.time_from_start.sec = 1
         msg_right.points.append(point)
@@ -434,8 +434,7 @@ class MoveDualArmHybrid(Node):
             self.execute_by_streaming(traj_lift_to_pick)
 
             # Mở tay ra để thả vật (Chỉ gọi 1 lần ở đây thay vì nhét trong vòng lặp)
-            self.control_hands(close=False)
-            time.sleep(1.5)
+            
 
             # 2. Xử lý đoạn lùi tiếp theo (Từ Pick lùi ra)
             is_last_task = (task_idx == total_tasks - 1)
@@ -449,10 +448,14 @@ class MoveDualArmHybrid(Node):
                 # Nếu chưa phải task cuối, chỉ lùi tới index 2 (Pre-pick -> Raise Hand). Dừng ở Raise Hand!
                 stop_idx = 1
 
+            
+
             for idx in range(len(saved_trajectories) - 2, stop_idx, -1):
                 if not rclpy.ok(): break
                 rev_traj = self.reverse_trajectory(saved_trajectories[idx])
                 self.execute_by_streaming(rev_traj)
+                self.control_hands(close=False)
+                time.sleep(1.5)
 
             self.get_logger().info(f"--- TASK {task_idx + 1} FINISHED! ---")
 

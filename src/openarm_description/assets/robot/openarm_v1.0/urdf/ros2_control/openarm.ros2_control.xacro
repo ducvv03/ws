@@ -101,11 +101,4 @@ limitations under the License.
     </ros2_control>
 
   </xacro:macro>
-
-  <xacro:include filename="$(find brainco_moveit_config)/config/dual_revo2.ros2_control.xacro" />
-    <xacro:dual_revo2_ros2_control
-        name="DualRevo2Hardware"
-        initial_positions_file="$(find brainco_moveit_config)/config/dual_revo2_initial_positions.yaml"/>
-
-
 </robot>
