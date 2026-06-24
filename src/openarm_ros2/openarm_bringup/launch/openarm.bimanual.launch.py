@@ -15,6 +15,7 @@
 
 import os
 import xacro
+import yaml
 
 from ament_index_python.packages import get_package_share_directory
 
@@ -230,6 +231,35 @@ def generate_launch_description():
     left_can_interface = LaunchConfiguration("left_can_interface")
     arm_prefix = LaunchConfiguration("arm_prefix")
 
+    try:
+        camera_pkg_share = get_package_share_directory("openarm_bringup")
+        camera_yaml_file = os.path.join(camera_pkg_share, "config", "calibration", "camera_tf.yaml")
+
+        with open(camera_yaml_file, "r") as f:
+            camera_cfg = yaml.safe_load(f)
+
+        cp = camera_cfg["camera_tf"]["ros__parameters"]
+
+        camera_tf_node = Node(
+            package="tf2_ros",
+            executable="static_transform_publisher",
+            name="camera_static_tf",
+            arguments=[
+                "--x", str(cp["x"]),
+                "--y", str(cp["y"]),
+                "--z", str(cp["z"]),
+                "--qx", str(cp["qx"]),
+                "--qy", str(cp["qy"]),
+                "--qz", str(cp["qz"]),
+                "--qw", str(cp["qw"]),
+                "--frame-id", cp["parent_frame"],
+                "--child-frame-id", cp["child_frame"],
+            ],
+        )
+    except Exception as e:
+        print(f"Warning: Could not load camera_tf.yaml. Error: {e}")
+        camera_tf_node = None
+
     controllers_file = PathJoinSubstitution(
         [FindPackageShare(runtime_config_package), "config",
          "controllers", controllers_file]
@@ -291,12 +321,15 @@ def generate_launch_description():
 
     LAUNCH_DELAY_SECONDS = 1.0
 
-    return LaunchDescription(
-        declared_arguments + [
-            robot_nodes_spawner_func,
-            rviz_node,
-            TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[joint_state_broadcaster_spawner]),
-            TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[controller_spawner_func]),
-            TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[hand_controller_spawner]),
-        ]
-    )
+    launch_actions = declared_arguments + [
+        robot_nodes_spawner_func,
+        rviz_node,
+        TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[joint_state_broadcaster_spawner]),
+        TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[controller_spawner_func]),
+        TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[hand_controller_spawner]),
+    ]
+
+    if camera_tf_node:
+        launch_actions.append(camera_tf_node)
+
+    return LaunchDescription(launch_actions)

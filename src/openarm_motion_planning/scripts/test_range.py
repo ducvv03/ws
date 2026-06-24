@@ -22,6 +22,8 @@ from moveit_msgs.msg import (
     Constraints, JointConstraint, MoveItErrorCodes, RobotTrajectory
 )
 from moveit_msgs.srv import GetPositionIK, ApplyPlanningScene
+import numpy as np
+
 
 
 class WorkspaceTester(Node):
@@ -32,10 +34,10 @@ class WorkspaceTester(Node):
         # CONFIGURATION TEST RANGE
         # ==========================================
         # Điều chỉnh dải tọa độ Tâm (A) cần test
-        self.X_RANGE = [0.05, 0.15, 0.25, 0.35, 0.45]
-        self.Y_RANGE = [-0.2, -0.1, 0.0, 0.1, 0.2]
-        self.Z_RANGE = [0.3, 0.4, 0.5]
-        self.A_RANGE = [-50.0, -25.0, 0.0, 25.0, 50.0]  # Góc xoay Z
+        self.X_RANGE = np.arange(0.1, 0.45, 0.1).tolist()
+        self.Y_RANGE = np.arange(-0.05, 0.1, 0.05).tolist()
+        self.Z_RANGE = np.arange(0.3, 0.6, 0.05).tolist()
+        self.A_RANGE = np.arange(-60, 60, 20)  # Góc xoay Z
 
         # Bật/tắt chạy thật.
         self.EXECUTE_MOTION = True
@@ -89,14 +91,14 @@ class WorkspaceTester(Node):
 
         # 2. Điểm kết thúc: BASE
         elif pose_type == "base":
-            p_left = create_pose(0.30, 0.15, 0.50, 0.71, 0.0, 0.71, 0.0)
-            p_right = create_pose(0.30, -0.15, 0.50, 0.71, 0.0, 0.71, 0.0)
+            p_left = create_pose(0.014604, 0.1535, 0.45998, 0.71, 0.0, 0.71, 0.0)
+            p_right = create_pose(0.014604, -0.1535, 0.45998, 0.71, 0.0, 0.71, 0.0)
             return p_left, p_right
 
     def get_dynamic_poses(self, xA, yA, zA, angle_deg):
         angle_rad = math.radians(angle_deg)
-        dist_pick = 0.15  # Pick cách A 15cm
-        dist_pre = 0.20  # Pre-pick cách A 20cm
+        dist_pick = 0.06  # Pick cách A 15cm
+        dist_pre = 0.15  # Pre-pick cách A 20cm
         lift_height = 0.10  # Lift nâng lên 10cm
 
         q_base = (0.0, 0.70710678, 0.0, 0.70710678)
@@ -310,7 +312,7 @@ class WorkspaceTester(Node):
                             ("Pre-pick", pose_pre_l, pose_pre_r),
                             ("Pick", pose_pick_l, pose_pick_r),
                             ("Lift", pose_lift_l, pose_lift_r),
-                            ("Base", pose_base_l, pose_base_r)
+                            # ("Base", pose_base_l, pose_base_r)
                         ]
 
                         # 2. GIẢI IK THEO CHUỖI LIÊN TIẾP (Seed nối tiếp Seed)
@@ -339,7 +341,7 @@ class WorkspaceTester(Node):
                         plan_failed = False
                         path_names = ["Raise->Pre", "Pre->Pick", "Pick->Lift", "Lift->Base"]
 
-                        for step in range(4):
+                        for step in range(3):
                             start_l, start_r = ik_solutions[step]
                             end_l, end_r = ik_solutions[step + 1]
                             path_name = path_names[step]

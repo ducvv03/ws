@@ -95,20 +95,20 @@ limitations under the License.
     <child link="right_base_link"/>
   </joint>
 
-  <xacro:if value="$(arg use_fake_hardware)">
+  <xacro:unless value="$(arg use_fake_hardware)">
     <xacro:include filename="$(find brainco_moveit_config)/config/dual_revo2.ros2_control.xacro" />
     <xacro:dual_revo2_ros2_control
       name="Revo2HandsSystem"
       initial_positions_file="$(find brainco_moveit_config)/config/dual_revo2_initial_positions.yaml"/>
-  </xacro:if>
+  </xacro:unless>
 
-  <xacro:unless value="$(arg use_fake_hardware)">
+  <xacro:if value="$(arg use_fake_hardware)">
     <xacro:include filename="$(find brainco_hand_driver)/config/dual_revo2.ros2_control.xacro" />
     <xacro:dual_revo2_ros2_control
         name="DualRevo2System"
         initial_positions_file="$(arg initial_positions_file)"
         left_protocol_config_file="$(arg left_protocol_config_file)"
         right_protocol_config_file="$(arg right_protocol_config_file)"/>
-  </xacro:unless>
+  </xacro:if>
 
 </robot>

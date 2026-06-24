@@ -1,0 +1,13 @@
+camera_tf:
+  ros__parameters:
+    parent_frame: "openarm_body_link0"
+    child_frame: "camera_link"
+
+    x: 0.0
+    y: 0.0
+    z: 0.80
+
+    qx: 0.0
+    qy: 0.522687
+    qz: 0.0
+    qw: 0.852525

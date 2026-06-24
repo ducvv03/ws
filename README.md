@@ -10,6 +10,22 @@ cd ~/pnk/pnk_ws
 python3 src/openarm_motion_planning/scripts/demo4.py
 
 
+
+ros2 launch realsense2_camera rs_launch.py \
+  enable_depth:=true \
+  enable_color:=true \
+  pointcloud.enable:=true \
+  align_depth.enable:=true \
+  rgb_camera.color_profile:=640x480x30 \
+  depth_module.depth_profile:=640x480x30
+
+ros2 run tf2_ros static_transform_publisher \
+0.30 0 0.80 \
+0 0.7 0 \
+openarm_body_link0 \
+camera_link
+
+
 teleop
 
 
