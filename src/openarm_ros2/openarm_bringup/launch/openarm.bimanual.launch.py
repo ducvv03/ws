@@ -51,11 +51,12 @@ def namespace_from_context(context, arm_prefix):
 
 
 def generate_robot_description(context: LaunchContext, description_package, description_file,
-                               arm_type, use_fake_hardware, right_can_interface, left_can_interface):
+                               arm_type, use_fake_hardware, use_fake_hand, right_can_interface, left_can_interface):
     """Generate robot description using xacro processing."""
     description_package_str = context.perform_substitution(description_package)
     arm_type_str = context.perform_substitution(arm_type)
     use_fake_hardware_str = context.perform_substitution(use_fake_hardware)
+    use_fake_hand_str = context.perform_substitution(use_fake_hand)
     right_can_interface_str = context.perform_substitution(right_can_interface)
     left_can_interface_str = context.perform_substitution(left_can_interface)
 
@@ -80,6 +81,7 @@ def generate_robot_description(context: LaunchContext, description_package, desc
             "arm_type": arm_type_str,
             "bimanual": "true",
             "use_fake_hardware": use_fake_hardware_str,
+            "use_fake_hand": use_fake_hand_str,
             "ros2_control": "true",
             "right_can_interface": right_can_interface_str,
             "left_can_interface": left_can_interface_str,
@@ -94,14 +96,14 @@ def generate_robot_description(context: LaunchContext, description_package, desc
 
 
 def robot_nodes_spawner(context: LaunchContext, description_package, description_file,
-                        arm_type, use_fake_hardware, controllers_file,
+                        arm_type, use_fake_hardware, use_fake_hand, controllers_file,
                         right_can_interface, left_can_interface, arm_prefix):
     """Spawn both robot state publisher and control nodes with shared robot description."""
     namespace = namespace_from_context(context, arm_prefix)
 
     robot_description = generate_robot_description(
         context, description_package, description_file, arm_type,
-        use_fake_hardware, right_can_interface, left_can_interface,
+        use_fake_hardware, use_fake_hand, right_can_interface, left_can_interface,
     )
 
     controllers_file_str = context.perform_substitution(controllers_file)
@@ -187,6 +189,11 @@ def generate_launch_description():
             description="Use fake hardware instead of real hardware.",
         ),
         DeclareLaunchArgument(
+            "use_fake_hand",
+            default_value="true",
+            description="Use fake hand instead of real hand.",
+        ),
+        DeclareLaunchArgument(
             "robot_controller",
             default_value="joint_trajectory_controller",
             choices=["forward_position_controller",
@@ -224,6 +231,7 @@ def generate_launch_description():
     description_file = LaunchConfiguration("description_file")
     arm_type = LaunchConfiguration("arm_type")
     use_fake_hardware = LaunchConfiguration("use_fake_hardware")
+    use_fake_hand = LaunchConfiguration("use_fake_hand")
     robot_controller = LaunchConfiguration("robot_controller")
     runtime_config_package = LaunchConfiguration("runtime_config_package")
     controllers_file = LaunchConfiguration("controllers_file")
@@ -268,7 +276,7 @@ def generate_launch_description():
     robot_nodes_spawner_func = OpaqueFunction(
         function=robot_nodes_spawner,
         args=[description_package, description_file, arm_type,
-              use_fake_hardware, controllers_file,
+              use_fake_hardware, use_fake_hand, controllers_file,
               right_can_interface, left_can_interface, arm_prefix]
     )
 

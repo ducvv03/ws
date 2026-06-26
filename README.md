@@ -4,6 +4,9 @@ sudo openarm-can-cli -i can1 can_configure
 cd ~/openarm_ros2_ws
 ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1
 
+ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=true use_fake_hand:=true 
+
+
 ros2 launch openarm_bimanual_moveit_config move_group.launch.py
 
 cd ~/pnk/pnk_ws
@@ -19,12 +22,8 @@ ros2 launch realsense2_camera rs_launch.py \
   rgb_camera.color_profile:=640x480x30 \
   depth_module.depth_profile:=640x480x30
 
-ros2 run tf2_ros static_transform_publisher \
-0.30 0 0.80 \
-0 0.7 0 \
-openarm_body_link0 \
-camera_link
-
+python3 src/openarm_motion_planning/scripts/grasp_generation.py 
+python3 src/openarm_motion_planning/scripts/demo31.py
 
 teleop
 

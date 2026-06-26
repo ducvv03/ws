@@ -81,17 +81,25 @@ class MoveDualArmHybrid(Node):
             return p
 
         qx, qy, qz, qw = 0.71, 0.0, 0.71, 0.0
-        # qx2, qy2, qz2, qw2 = 0.71, 0.0, 0.71, 0.0
+        qx2, qy2, qz2, qw2 = 0.71, 0.0, 0.71, 0.0
         # qx2, qy2, qz2, qw2 = 0.965926, 0.0, 0.258819, 0.0
-        qx2, qy2, qz2, qw2 = 0.939693, 0.0, 0.342020, 0.0
+        # qx2, qy2, qz2, qw2 = 0.939693, 0.0, 0.342020, 0.0
+
+        # left_forward = [
+        #     [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 0. Home
+        #     (create_pose(0.014604, 0.1535, 0.50, qx, qy, qz, qw)), # 1. Raise hand
+        #     (create_pose(0.30, 0.23, 0.45, qx, qy, qz, qw)),
+        #     (create_pose(0.35, 0.23, 0.40, qx2, qy2, qz2, qw2), "CLOSE_HAND"),         # 2. Pre-pick
+        #     (create_pose(0.35, 0.16, 0.40, qx2, qy2, qz2, qw2)),  # 3. Pick
+        #     (create_pose(0.35, 0.16, 0.50, qx2, qy2, qz2, qw2), "WAIT_ENTER"), # 4. Lift
+        # ]
 
         left_forward = [
             [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 0. Home
-            (create_pose(0.014604, 0.1535, 0.35, qx, qy, qz, qw)), # 1. Raise hand
-            (create_pose(0.25, 0.23, 0.40, qx, qy, qz, qw)),
-            (create_pose(0.30, 0.23, 0.35, qx2, qy2, qz2, qw2), "CLOSE_HAND"),         # 2. Pre-pick
-            (create_pose(0.30, 0.16, 0.35, qx2, qy2, qz2, qw2)),  # 3. Pick
-            (create_pose(0.30, 0.16, 0.45, qx2, qy2, qz2, qw2), "WAIT_ENTER"), # 4. Lift
+            (create_pose(0.014604, 0.1535, 0.50, qx, qy, qz, qw)),  # 1. Raise hand
+            (create_pose(0.35, 0.10, 0.45, qx2, qy2, qz2, qw2), "CLOSE_HAND"),  # 2. Pre-pick
+            (create_pose(0.35, 0.06, 0.45, qx2, qy2, qz2, qw2)),  # 3. Pick
+            (create_pose(0.35, 0.06, 0.55, qx2, qy2, qz2, qw2), "WAIT_ENTER"),  # 4. Lift
         ]
         return left_forward
 

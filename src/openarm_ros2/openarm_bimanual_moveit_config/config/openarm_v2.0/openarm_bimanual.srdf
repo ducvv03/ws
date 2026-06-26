@@ -79,12 +79,6 @@ limitations under the License.
         <joint name="openarm_right_joint7" value="0"/>
     </group_state>
 
-    <end_effector name="left_ee" parent_link="openarm_left_ee_base_link" group="left_gripper"/>
-    <end_effector name="right_ee" parent_link="openarm_right_ee_base_link" group="right_gripper"/>
-
-    <passive_joint name="openarm_left_finger_joint2"/>
-    <passive_joint name="openarm_right_finger_joint2"/>
-
     <disable_collisions link1="openarm_body_link0" link2="openarm_right_link1" reason="Adjacent"/>
     <disable_collisions link1="openarm_left_base_link" link2="openarm_left_link1" reason="Adjacent"/>
     <disable_collisions link1="openarm_right_base_link" link2="openarm_right_link1" reason="Adjacent"/>

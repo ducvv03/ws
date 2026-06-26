@@ -1,0 +1,47 @@
+# config.yaml
+id_10: # Rectangle box
+  # -- Vision Config --
+  tag_size_m: 0.05
+  calculation_method: "tag_relative"       # PHÂN BIỆT LOGIC
+  offset_quat: [-0.5, 0.5, 0.5, 0.5]
+  offset_quat_grasp: [-0.298, 0.298, 0.64, 0.64]
+  # Các điểm này nằm trong hệ tọa độ của TAG
+  center_tag_m: [0.0, 0.0, 0.0]
+  pre_left_tag_m: [0.20, 0.0, 0.0]
+  pre_right_tag_m: [-0.20, 0.0, 0.0]
+  left_tag_m: [0.16, 0.0, 0.0]
+  right_tag_m: [-0.16, 0.0, 0.0]
+
+  # -- Control Config --
+  csv_file: "rectangle.csv"
+  lift_joints_left: [-0.4866417724857978, -0.4137858081841404, 0.4247295323536645, 1.5554793789156216, -0.45994551878526213, 0.37953847048008904, 1.1582505695875869,]
+  lift_joints_right: [0.4866417724857978, 0.4137858081841404, -0.4247295323536645, 1.5554793789156216, 0.45994551878526213, -0.37953847048008904, -1.1582505695875869]
+
+  obstacle_type: "BOX"
+  obstacle_dim: [0.03, 0.25, 0.15]
+  obstacle_z_offset: -0.02
+  obstacle_quat: [0.0, 0.0, 0.0, 1.0]
+
+id_other: # Cylinder box
+  # -- Vision Config --
+  tag_size_m: 0.025
+  calculation_method: "fixed_orientation"
+  fixed_quat: [0.71, 0.0, 0.71, 0.0]
+
+  # Chỉ có tâm là ở TAG Frame
+  center_tag_m: [0.0, 0.05, 0.0]
+  # Các offset này áp dụng trong ROBOT Frame
+  offset_pre_left: [-0.05, -0.10, -0.07]
+  offset_pre_right: [-0.05, 0.10, -0.07]
+  offset_left: [-0.05, -0.06, -0.07]
+  offset_right: [-0.05, 0.06, -0.07]
+
+  # -- Control Config --
+  csv_file: "cylinder.csv"
+  lift_joints_left: [-0.4138824647668037, -0.17756369005495432, 0.6504173887447897, 1.587995076367301, -0.1988713574732798, 0.6462285185963096, 0.2992244376765414]
+  lift_joints_right: [0.4138824647668037, 0.17756369005495432, -0.6504173887447897, 1.587995076367301, 0.1988713574732798, -0.6462285185963096, -0.2992244376765414]
+  obstacle_type: "CYLINDER"
+  obstacle_dim: [0.10, 0.03]
+  obstacle_x_offset: -0.05
+  obstacle_z_offset: -0.05
+  obstacle_quat: [0.0, 0.0, 1.0, 0.0]

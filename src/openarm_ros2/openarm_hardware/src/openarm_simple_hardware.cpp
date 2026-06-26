@@ -158,11 +158,11 @@ hardware_interface::CallbackReturn OpenArmHW::on_init(
   }
 
   std::string root_link = "openarm_body_link0";
-  std::string leaf_link = "openarm_right_hand";
+  std::string leaf_link = "openarm_right_tcp";
   if (arm_prefix_ == "left_") {
-      leaf_link = "openarm_left_hand";
+      leaf_link = "openarm_left_tcp";
   } else if (arm_prefix_ == "right_") {
-      leaf_link = "openarm_right_hand";
+      leaf_link = "openarm_right_tcp";
   }
   RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"), "Initializing Dynamics with URDF: %s", urdf_path_.c_str());
 

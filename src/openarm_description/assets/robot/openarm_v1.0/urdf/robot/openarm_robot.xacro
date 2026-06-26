@@ -31,6 +31,7 @@ limitations under the License.
             ros2_control:=false
             can_interface:=''
             use_fake_hardware:=false
+            use_fake_hand:=true
             fake_sensor_commands:=false
             no_prefix:='false'
             arm_prefix:=''
