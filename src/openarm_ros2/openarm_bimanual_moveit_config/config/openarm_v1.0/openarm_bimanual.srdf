@@ -350,4 +350,6 @@
 
     <disable_collisions link1="left_thumb_metacarpal_link" link2="openarm_left_link7" reason="Never"/>
     <disable_collisions link1="openarm_right_link7" link2="right_thumb_metacarpal_link" reason="Never"/>
+    <disable_collisions link1="openarm_right_link7" link2="right_thumb_proximal_link" reason="Never"/>
+    <disable_collisions link1="openarm_left_link7" link2="left_thumb_proximal_link" reason="Never"/>
 </robot>

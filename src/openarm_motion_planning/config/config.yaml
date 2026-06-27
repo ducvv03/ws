@@ -7,10 +7,10 @@ id_10: # Rectangle box
   offset_quat_grasp: [-0.298, 0.298, 0.64, 0.64]
   # Các điểm này nằm trong hệ tọa độ của TAG
   center_tag_m: [0.0, 0.0, 0.0]
-  pre_left_tag_m: [0.20, 0.0, 0.0]
-  pre_right_tag_m: [-0.20, 0.0, 0.0]
-  left_tag_m: [0.16, 0.0, 0.0]
-  right_tag_m: [-0.16, 0.0, 0.0]
+  pre_left_tag_m: [0.25, 0.0, -0.02]
+  pre_right_tag_m: [-0.25, 0.0, -0.02]
+  left_tag_m: [0.16, 0.02, 0.0]
+  right_tag_m: [-0.16, 0.02, 0.0]
 
   # -- Control Config --
   csv_file: "rectangle.csv"
@@ -23,7 +23,7 @@ id_10: # Rectangle box
   obstacle_quat: [0.0, 0.0, 0.0, 1.0]
 
   # -- Hand Control Config --
-  close_pose: [ 1.0, 0.0, 0.4, 0.7, 0.9, 1.0 ]
+  close_pose: [ 0.0, 0.0, 0.4, 0.5, 0.6, 0.7 ]
   open_after_reverse_segment: 4
 
 id_other: # Cylinder box
@@ -35,10 +35,10 @@ id_other: # Cylinder box
   # Chỉ có tâm là ở TAG Frame
   center_tag_m: [0.0, 0.05, 0.0]
   # Các offset này áp dụng trong ROBOT Frame
-  offset_pre_left: [-0.05, -0.10, -0.07]
-  offset_pre_right: [-0.05, 0.10, -0.07]
-  offset_left: [-0.05, -0.06, -0.07]
-  offset_right: [-0.05, 0.06, -0.07]
+  offset_pre_left: [-0.0, -0.10, -0.06]
+  offset_pre_right: [-0.0, 0.10, -0.06]
+  offset_left: [-0.0, -0.06, -0.06] #(z, y, x)
+  offset_right: [-0.0, 0.06, -0.06]
 
   # -- Control Config --
   csv_file: "cylinder.csv"
@@ -51,5 +51,5 @@ id_other: # Cylinder box
   obstacle_quat: [0.0, 0.0, 1.0, 0.0]
 
   # -- Hand Control Config --
-  close_pose: [ 1.0, 0.0, 0.7, 0.6, 0.6, 0.7 ]
+  close_pose: [ 0.0, 0.0, 0.5, 0.5, 0.5, 0.5 ]
   open_after_reverse_segment: 3

@@ -113,7 +113,7 @@ class MultiPickController(Node):
                 point.positions = [1.0, 0.0, 0.4, 0.7, 0.9, 1.0]  # Mặc định
         else:
             self.get_logger().info("Opening hands ...")
-            point.positions = [1.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # Pose mở cố định
+            point.positions = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]  # Pose mở cố định
 
         point.time_from_start.sec = 1
         msg_right.points.append(point)
@@ -434,6 +434,7 @@ class MultiPickController(Node):
 
             # Đọc tham số hand control từ YAML (với giá trị dự phòng nếu config bị thiếu)
             close_pose = cfg.get('close_pose', [1.0, 0.0, 0.4, 0.7, 0.9, 1.0])
+            close_pose2 = [0.0, 0.0, 1.5, 1.5, 1.5, 1.5]
             open_after_seg = cfg.get('open_after_reverse_segment', 3)
 
             self.get_logger().info(f"Phát hiện {len(valid_targets)} vật. Đã ưu tiên chọn gắp vật ID: {tag_id}")
@@ -447,7 +448,8 @@ class MultiPickController(Node):
             if tag_id == 10:
                 self.get_logger().info("Rectangle object detected: Closing hand BEFORE Pre-Grasp...")
                 self.control_hands(close=True, custom_close_pose=close_pose)
-                time.sleep(1.0)  # Chờ ngón tay co lại
+                self.control_hands(close=True, custom_close_pose=close_pose)
+                time.sleep(1.5)  # Chờ ngón tay co lại
 
             # PRE-GRASP
             self.get_logger().info("Planning Pre-Grasp...")
@@ -489,7 +491,8 @@ class MultiPickController(Node):
             if tag_id != 10:
                 self.get_logger().info("Cylinder object detected: Closing hand AFTER Grasp...")
                 self.control_hands(close=True, custom_close_pose=close_pose)
-                time.sleep(1.0)
+                self.control_hands(close=True, custom_close_pose=close_pose)
+                time.sleep(1.5)
 
             print("\n\033[93m" + "=" * 50)
             print(" Đã gắp (GRASP)! Nhấn Enter để Lift... ")

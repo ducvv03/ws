@@ -18,8 +18,12 @@ ros2 launch realsense2_camera rs_launch.py \
   enable_color:=true \
   pointcloud.enable:=true \
   align_depth.enable:=true \
-  rgb_camera.color_profile:=640x480x30 \
-  depth_module.depth_profile:=640x480x30
+  rgb_camera.color_profile:=640x480x15 \
+  depth_module.depth_profile:=640x480x15
+
+ros2 param set /camera/camera pointcloud__neon_.enable true
+ros2 param set /camera/camera pointcloud__neon_.stream_filter 2
+
 
 python3 src/openarm_motion_planning/scripts/grasp_generation.py 
 python3 src/openarm_motion_planning/scripts/demo31.py
