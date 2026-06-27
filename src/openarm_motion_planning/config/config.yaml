@@ -18,9 +18,13 @@ id_10: # Rectangle box
   lift_joints_right: [0.4866417724857978, 0.4137858081841404, -0.4247295323536645, 1.5554793789156216, 0.45994551878526213, -0.37953847048008904, -1.1582505695875869]
 
   obstacle_type: "BOX"
-  obstacle_dim: [0.03, 0.25, 0.15]
+  obstacle_dim: [0.03, 0.15, 0.15]
   obstacle_z_offset: -0.02
   obstacle_quat: [0.0, 0.0, 0.0, 1.0]
+
+  # -- Hand Control Config --
+  close_pose: [ 1.0, 0.0, 0.4, 0.7, 0.9, 1.0 ]
+  open_after_reverse_segment: 4
 
 id_other: # Cylinder box
   # -- Vision Config --
@@ -45,3 +49,7 @@ id_other: # Cylinder box
   obstacle_x_offset: -0.05
   obstacle_z_offset: -0.05
   obstacle_quat: [0.0, 0.0, 1.0, 0.0]
+
+  # -- Hand Control Config --
+  close_pose: [ 1.0, 0.0, 0.7, 0.6, 0.6, 0.7 ]
+  open_after_reverse_segment: 3
