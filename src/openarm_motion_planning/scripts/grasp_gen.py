@@ -241,6 +241,8 @@ class GraspDetectorNode(Node):
                     m_center_temp = self.create_and_transform_pose(p_c, [0.0, 0.0, 0.0, 1.0], msg.header.stamp)
                     if m_center_temp is not None:
                         fixed_q = cfg['fixed_quat']
+                        fixed_quat_left_grasp = cfg['fixed_quat_left_grasp']
+                        fixed_quat_right_grasp = cfg['fixed_quat_right_grasp']
 
                         # Bước 2: Gắn Fixed Quat vào Center
                         m_center = PoseStamped()
@@ -254,8 +256,8 @@ class GraspDetectorNode(Node):
                         # Bước 3: Tính các điểm còn lại dựa trên Center và Robot Frame offsets
                         m_pre_l = apply_offset_to_pose(m_center, cfg['offset_pre_left'], fixed_q)
                         m_pre_r = apply_offset_to_pose(m_center, cfg['offset_pre_right'], fixed_q)
-                        m_l = apply_offset_to_pose(m_center, cfg['offset_left'], fixed_q)
-                        m_r = apply_offset_to_pose(m_center, cfg['offset_right'], fixed_q)
+                        m_l = apply_offset_to_pose(m_center, cfg['offset_left'], fixed_quat_left_grasp)
+                        m_r = apply_offset_to_pose(m_center, cfg['offset_right'], fixed_quat_right_grasp)
 
                 # =========================================================
                 # XUẤT DATA & VISUALIZATION

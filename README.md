@@ -25,8 +25,8 @@ ros2 param set /camera/camera pointcloud__neon_.enable true
 ros2 param set /camera/camera pointcloud__neon_.stream_filter 2
 
 
-python3 src/openarm_motion_planning/scripts/grasp_generation.py 
-python3 src/openarm_motion_planning/scripts/demo31.py
+python3 src/openarm_motion_planning/scripts/grasp_gen.py 
+python3 src/openarm_motion_planning/scripts/demo50.py
 
 teleop
 
