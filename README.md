@@ -2,8 +2,7 @@ sudo openarm-can-cli -i can0 can_configure
 sudo openarm-can-cli -i can1 can_configure
 
 cd ~/openarm_ros2_ws
-ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1
-
+ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1 use_fake_hand:=true
 ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=true use_fake_hand:=true 
 
 

@@ -2,7 +2,7 @@
 id_10: # Rectangle box
   # -- Vision Config --
   tag_size_m: 0.05
-  calculation_method: "tag_relative"       # PHÂN BIỆT LOGIC
+  calculation_method: "tag_relative"
   offset_quat: [-0.5, 0.5, 0.5, 0.5]
   offset_quat_grasp: [-0.298, 0.298, 0.64, 0.64]
   # Các điểm này nằm trong hệ tọa độ của TAG
