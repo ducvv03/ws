@@ -37,9 +37,21 @@ add_library(${PROJECT_NAME} SHARED
   src/openarm_simple_hardware.cpp
   src/dynamics.cpp
 )
+# add lib for teleop 
+add_library(openarm_tele_to_sim SHARED
+  src/openarm_teleop.cpp
+  src/dynamics.cpp
+  src/openarm_simple_hardware.cpp
+)
+
 
 target_include_directories(
   ${PROJECT_NAME}
+  PRIVATE
+  include
+)
+
+target_include_directories(openarm_tele_to_sim
   PRIVATE
   include
 )
@@ -49,6 +61,11 @@ target_link_libraries(openarm_hardware
 )
 
 target_link_libraries(${PROJECT_NAME}
+  OpenArmCAN::openarm_can
+)
+
+target_link_libraries(openarm_tele_to_sim
+  Eigen3::Eigen
   OpenArmCAN::openarm_can
 )
 
@@ -62,10 +79,21 @@ ament_target_dependencies(${PROJECT_NAME}
   orocos_kdl
 )
 
+ament_target_dependencies(openarm_tele_to_sim
+  hardware_interface
+  pluginlib
+  rclcpp
+  urdf
+  rclcpp_lifecycle
+  kdl_parser
+  orocos_kdl
+)
+
 pluginlib_export_plugin_description_file(hardware_interface openarm_hardware.xml)
+pluginlib_export_plugin_description_file(hardware_interface openarm_teleop.xml)
 
 install(
-  TARGETS ${PROJECT_NAME}
+  TARGETS ${PROJECT_NAME} openarm_tele_to_sim
   DESTINATION lib
   )
 
@@ -79,6 +107,7 @@ ament_export_include_directories(
 
 ament_export_libraries(
   ${PROJECT_NAME}
+  openarm_tele_to_sim
 )
 ament_export_dependencies(
   hardware_interface
