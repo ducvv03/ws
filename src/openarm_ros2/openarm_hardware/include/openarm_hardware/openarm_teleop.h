@@ -15,7 +15,9 @@
 #pragma once
 
 #include "openarm_hardware/openarm_simple_hardware.hpp"
-
+#include <controller/control.hpp>
+#include  <yamlloader.hpp>
+using namespace openarm_hardware;
 namespace openarm_hardware_teleop {
 
 /**
@@ -26,7 +28,9 @@ namespace openarm_hardware_teleop {
  */
 class OpenArmHWTeleOp : public openarm_hardware::OpenArmHW {
  public:
-  OpenArmHWTeleOp();
+  OpenArmHWTeleOp() {
+    //control_  = std::make_unique<Control> () ;
+  }
 
   TEMPLATES__ROS2_CONTROL__VISIBILITY_PUBLIC
   hardware_interface::CallbackReturn on_init(
@@ -60,6 +64,10 @@ class OpenArmHWTeleOp : public openarm_hardware::OpenArmHW {
   TEMPLATES__ROS2_CONTROL__VISIBILITY_PUBLIC
   hardware_interface::return_type write(
       const rclcpp::Time& time, const rclcpp::Duration& period) override;
+
+   private:
+    std::unique_ptr<Control> control_;
+    //std::vector<JointState> joint_arm_states(OpenArmHW::ARM_DOF) ;
 };
 
 

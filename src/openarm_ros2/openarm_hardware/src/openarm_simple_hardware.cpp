@@ -319,16 +319,6 @@ hardware_interface::return_type OpenArmHW::read(
     }
   }
 
-  // 1. PUBLISH MOTOR'S INFORMATION
-  if (pub_states_up_) {
-    sensor_msgs::msg::JointState msg_up;
-    msg_up.header.stamp = time;
-    msg_up.name = joint_names_;
-    msg_up.position = pos_states_;
-    msg_up.velocity = vel_states_;
-    msg_up.effort = tau_states_;
-    pub_states_up_->publish(msg_up);
-  }
 
   return hardware_interface::return_type::OK;
 }
@@ -367,17 +357,6 @@ hardware_interface::return_type OpenArmHW::write(
     actual_tau_sent.push_back(0.0);
   }
   openarm_->recv_all(100);
-
-  // 2. PUBLISH INFORMATION WHICH SENT TO MOTORS
-  if (pub_cmds_down_) {
-    sensor_msgs::msg::JointState msg_down;
-    msg_down.header.stamp = time;
-    msg_down.name = joint_names_;
-    msg_down.position = pos_commands_;
-    msg_down.velocity = vel_commands_;
-    msg_down.effort = actual_tau_sent;
-    pub_cmds_down_->publish(msg_down);
-  }
 
   return hardware_interface::return_type::OK;
 }

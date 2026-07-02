@@ -28,7 +28,7 @@
 #include "openarm_hardware/visibility_control.h"
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/state.hpp"
-#include "openarm_hardware/dynamics.hpp"
+#include <controller/dynamics.hpp>
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "rclcpp/rclcpp.hpp"
 

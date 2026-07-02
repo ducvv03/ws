@@ -66,6 +66,7 @@ bool Dynamics::Init() {
 }
 
 void Dynamics::GetGravity(const double *motor_position, double *gravity) {
+    
     const auto njoints = kdl_chain.getNrOfJoints();
 
     KDL::JntArray q_(kdl_chain.getNrOfJoints());

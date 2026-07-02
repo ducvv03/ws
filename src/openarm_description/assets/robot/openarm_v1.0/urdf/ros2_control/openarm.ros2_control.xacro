@@ -24,9 +24,13 @@ limitations under the License.
              gazebo_effort:=^|false
              arm_prefix:=''
              bimanual:=false
-             can_fd:=^|true">
+             can_fd:=^|true
+             use_teleop:=^|false"
+             >
 
-    <ros2_control name="openarm_hardware_interface" type="system">
+    <ros2_control name="openarm_hardware_interface" type="system"
+                  is_async="${'true' if use_teleop == 1 else 'false'}"
+                  rw_rate="${1000 if use_teleop == 1 else 0}">
         <hardware>
           <param name="arm_type">${arm_type}</param>
           <param name="prefix">${arm_prefix}</param>
@@ -35,8 +39,30 @@ limitations under the License.
             <param name="fake_sensor_commands">${fake_sensor_commands}</param>
             <param name="state_following_offset">0.0</param>
           </xacro:if>
-          <xacro:if value="${use_fake_hardware == 0}">
+          <xacro:if value="${use_fake_hardware == 0 and use_teleop == 0}">
             <plugin>openarm_hardware/OpenArmHW</plugin>
+            <param name="can_interface">${can_interface}</param>
+            <param name="arm_prefix">${arm_prefix}</param>
+            <param name="hand">${hand}</param>
+            <param name="can_fd">${can_fd}</param>
+            <param name="urdf_path">(find openarm_description)/assets/robot/openarm_v1.0/urdf/openarm_v10.urdf</param>
+            <param name="kp1">${control_gains['joint1']['kp']}</param>
+            <param name="kp2">${control_gains['joint2']['kp']}</param>
+            <param name="kp3">${control_gains['joint3']['kp']}</param>
+            <param name="kp4">${control_gains['joint4']['kp']}</param>
+            <param name="kp5">${control_gains['joint5']['kp']}</param>
+            <param name="kp6">${control_gains['joint6']['kp']}</param>
+            <param name="kp7">${control_gains['joint7']['kp']}</param>
+            <param name="kd1">${control_gains['joint1']['kd']}</param>
+            <param name="kd2">${control_gains['joint2']['kd']}</param>
+            <param name="kd3">${control_gains['joint3']['kd']}</param>
+            <param name="kd4">${control_gains['joint4']['kd']}</param>
+            <param name="kd5">${control_gains['joint5']['kd']}</param>
+            <param name="kd6">${control_gains['joint6']['kd']}</param>
+            <param name="kd7">${control_gains['joint7']['kd']}</param>
+          </xacro:if>
+          <xacro:if value="${use_fake_hardware == 0 and use_teleop == 1}">
+            <plugin>openarm_hardware_teleop/OpenArmHWTeleOp</plugin>
             <param name="can_interface">${can_interface}</param>
             <param name="arm_prefix">${arm_prefix}</param>
             <param name="hand">${hand}</param>

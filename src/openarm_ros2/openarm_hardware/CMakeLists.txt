@@ -29,31 +29,40 @@ find_package(Eigen3 REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(orocos_kdl REQUIRED)
 find_package(urdf REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 # Find openarm_can library
 find_package(OpenArmCAN REQUIRED)
-
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/openarm_teleop  openarm_teleop_lib)
 add_library(${PROJECT_NAME} SHARED
   src/openarm_simple_hardware.cpp
-  src/dynamics.cpp
 )
+
+target_link_libraries(${PROJECT_NAME} openarm_teleop_lib)
 # add lib for teleop 
 add_library(openarm_tele_to_sim SHARED
   src/openarm_teleop.cpp
-  src/dynamics.cpp
   src/openarm_simple_hardware.cpp
 )
+target_link_libraries(openarm_tele_to_sim openarm_teleop_lib)
 
 
 target_include_directories(
   ${PROJECT_NAME}
   PRIVATE
   include
+  openarm_teleop/src
+  openarm_teleop/src/controller
+  openarm_teleop/src/openarm_port
 )
 
 target_include_directories(openarm_tele_to_sim
   PRIVATE
   include
+  openarm_teleop/src
+  openarm_teleop/src/controller
+  openarm_teleop/src/openarm_port
+
 )
 
 target_link_libraries(openarm_hardware
@@ -68,6 +77,10 @@ target_link_libraries(openarm_tele_to_sim
   Eigen3::Eigen
   OpenArmCAN::openarm_can
 )
+
+# Debug symbols + export dynamic symbols so crash backtraces show function names.
+target_compile_options(openarm_tele_to_sim PRIVATE -g)
+target_link_options(openarm_tele_to_sim PRIVATE -rdynamic)
 
 ament_target_dependencies(${PROJECT_NAME}
   hardware_interface
@@ -87,6 +100,7 @@ ament_target_dependencies(openarm_tele_to_sim
   rclcpp_lifecycle
   kdl_parser
   orocos_kdl
+  ament_index_cpp
 )
 
 pluginlib_export_plugin_description_file(hardware_interface openarm_hardware.xml)
@@ -99,6 +113,10 @@ install(
 
 install(DIRECTORY include/
 DESTINATION include
+)
+
+install(DIRECTORY openarm_teleop/config
+  DESTINATION share/${PROJECT_NAME}
 )
 
 ament_export_include_directories(

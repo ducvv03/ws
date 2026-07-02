@@ -45,9 +45,10 @@ add_library(
   src/controller/dynamics.cpp src/controller/control.cpp
   src/openarm_port/openarm_init.cpp src/openarm_port/joint_mapper.cpp)
 
+set_target_properties(openarm_teleop_lib PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
 target_include_directories(openarm_teleop_lib
                            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
 if(NOT TARGET kdl_parser::kdl_parser)
   # For old kdl-parser such as libkdl-parser-dev 1.14.2 in Debian.
   add_library(kdl_parser::kdl_parser INTERFACE IMPORTED)

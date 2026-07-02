@@ -15,6 +15,7 @@
 #pragma once
 
 #include <robot_state.hpp>
+#include <iostream>
 #include <vector>
 
 // Represents the state of a single joint
@@ -69,6 +70,38 @@ public:
         std::vector<MotorState> m(j.size());
         for (size_t i = 0; i < j.size(); ++i) m[i] = {j[i].position, j[i].velocity, j[i].effort};
         return m;
+    }
+
+    // Merge the 3 raw state vectors (position/velocity/effort) coming from the
+    // hardware into a single JointState vector. Returns an empty vector when any
+    // pointer is null or the sizes do not match.
+    std::vector<JointState> states_to_joint(const std::vector<double>* pos_states,
+                                            const std::vector<double>* vel_states,
+                                            const std::vector<double>* tau_states) const {
+        std::vector<JointState> joint_arm_states;
+
+        // Null check: bail out (empty) if any pointer is null.
+        if (pos_states == nullptr || vel_states == nullptr || tau_states == nullptr) {
+            std::cerr << "states_to_joint: null pointer input" << std::endl;
+            return joint_arm_states;
+        }
+
+        // Size check: all 3 vectors must have the same length to zip by index.
+        const size_t n = pos_states->size();
+        if (vel_states->size() != n || tau_states->size() != n) {
+            std::cerr << "states_to_joint: size mismatch (pos=" << n
+                      << " vel=" << vel_states->size() << " tau=" << tau_states->size() << ")"
+                      << std::endl;
+            return joint_arm_states;
+        }
+
+        joint_arm_states.resize(n);
+        for (size_t i = 0; i < n; ++i) {
+            joint_arm_states[i].position = (*pos_states)[i];
+            joint_arm_states[i].velocity = (*vel_states)[i];
+            joint_arm_states[i].effort = (*tau_states)[i];
+        }
+        return joint_arm_states;
     }
 
     size_t get_joint_count() const override { return joint_count_; }

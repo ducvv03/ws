@@ -32,6 +32,7 @@ limitations under the License.
   <xacro:arg name="left_arm_prefix" default="left_" />
   <xacro:arg name="right_arm_prefix" default="right_" />
   <xacro:arg name="use_fake_hardware" default="false" />
+  <xacro:arg name="use_teleop" default="false" />
   <xacro:arg name="use_fake_hand" default="true" />
   <xacro:arg name="fake_sensor_commands" default="false" />
   <xacro:arg name="bimanual" default="true" />
@@ -64,6 +65,7 @@ limitations under the License.
   left_arm_prefix="$(arg left_arm_prefix)"
   right_arm_prefix="$(arg right_arm_prefix)"
   use_fake_hardware="$(arg use_fake_hardware)"
+  use_teleop="$(arg use_teleop)"
   use_fake_hand="$(arg use_fake_hand)"
   fake_sensor_commands="$(arg fake_sensor_commands)"
   no_prefix="$(arg no_prefix)"

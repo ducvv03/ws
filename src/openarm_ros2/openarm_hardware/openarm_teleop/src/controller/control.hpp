@@ -65,6 +65,10 @@ public:
     Control(openarm::can::socket::OpenArm *arm, Dynamics *dynamics_l, Dynamics *dynamics_f,
             std::shared_ptr<RobotSystemState> robot_state, double Ts, int role,
             std::string arm_type, size_t arm_joint_num, size_t hand_motor_num);
+    Control(openarm::can::socket::OpenArm *arm, Dynamics *dynamics_l, Dynamics *dynamics_f,
+            std::shared_ptr<RobotSystemState> robot_state, double Ts, int role,
+            std::string arm_type, size_t arm_joint_num, size_t hand_motor_num , std::vector<double>& pos_states , 
+            std::vector<double>& vel_states , std::vector<double>& tau_states) ;
     ~Control();
 
     std::shared_ptr<RobotSystemState> response_;
@@ -82,10 +86,18 @@ public:
 
     bool AdjustPosition(void);
 
+    std::vector<double> pos_commands_;
+    std::vector<double> vel_commands_;
+    std::vector<double> tau_commands_;
+    std::vector<double>* pos_states_ = nullptr;
+    std::vector<double>* vel_states_ = nullptr;
+    std::vector<double>* tau_states_ = nullptr;
+
+
     // Compute torque based on bilateral
     bool bilateral_step();
     bool unilateral_step();
-
+    bool toSim_step();
     // NOTE! Control() class operates on "joints", while the underlying
     // classes operates on "actuators". The following functions map
     // joints to actuators.

@@ -19,6 +19,7 @@
 #include <cmath>
 #include <controller/control.hpp>
 #include <controller/dynamics.hpp>
+#include <cstdio>
 #include <iomanip>
 #include <thread>
 
@@ -49,6 +50,29 @@ Control::Control(openarm::can::socket::OpenArm* arm, Dynamics* dynamics_l, Dynam
       role_(role),
       arm_motor_num_(arm_motor_num),
       hand_motor_num_(hand_motor_num) {
+    differentiator_ = new Differentiator(Ts);
+    openarmjointconverter_ = new OpenArmJointConverter(arm_motor_num_);
+    openarmgripperjointconverter_ = new OpenArmJGripperJointConverter(hand_motor_num_);
+
+    arm_type_ = arm_type;
+}
+
+Control::Control(openarm::can::socket::OpenArm *arm, Dynamics *dynamics_l, Dynamics *dynamics_f,
+                 std::shared_ptr<RobotSystemState> robot_state, double Ts, int role,
+                 std::string arm_type, size_t arm_joint_num, size_t hand_motor_num,
+                 std::vector<double> &pos_states, std::vector<double> &vel_states,
+                 std::vector<double> &tau_states)
+    : openarm_(arm),
+      dynamics_l_(dynamics_l),
+      dynamics_f_(dynamics_f),
+      robot_state_(robot_state),
+      Ts_(Ts),
+      role_(role),
+      arm_motor_num_(arm_joint_num),
+      hand_motor_num_(hand_motor_num),
+      pos_states_(&pos_states),
+      vel_states_(&vel_states),
+      tau_states_(&tau_states) {
     differentiator_ = new Differentiator(Ts);
     openarmjointconverter_ = new OpenArmJointConverter(arm_motor_num_);
     openarmgripperjointconverter_ = new OpenArmJGripperJointConverter(hand_motor_num_);
@@ -208,6 +232,129 @@ bool Control::bilateral_step() {
 
     std::this_thread::sleep_for(std::chrono::microseconds(200));
 
+    openarm_->recv_all(220);
+
+    return true;
+}
+
+
+
+// add new function to handle teleto sim
+bool Control::toSim_step() {
+    // get motor status
+    // std::vector<MotorState> arm_motor_states;
+    // const auto& arm_motors = openarm_->get_arm().get_motors();
+    // for (size_t i = 0; i < arm_motors.size(); ++i) {
+    //     const auto& motor = arm_motors[i];
+    //     arm_motor_states.push_back({motor.get_position(), motor.get_velocity(), 0});
+    // }
+
+
+    // // convert joint to motor
+    // std::vector<JointState> joint_arm_states =
+    //     openarmjointconverter_->motor_to_joint(arm_motor_states);
+    // std::vector<JointState> joint_gripper_states =
+    //     openarmgripperjointconverter_->motor_to_joint(gripper_motor_states);
+
+    // set reponse
+
+    std::vector<JointState> joint_arm_states =
+        openarmjointconverter_->states_to_joint(pos_states_, vel_states_, tau_states_);
+
+    // Empty means null pointer or size mismatch (already logged by the
+    // converter); skip this step instead of pushing bad data.
+    if (joint_arm_states.empty()) {
+        return false;
+    }
+    robot_state_->arm_state().set_all_responses(joint_arm_states);
+    // robot_state_->hand_state().set_all_responses(joint_gripper_states);
+
+    size_t arm_dof = robot_state_->arm_state().get_size();
+    // size_t gripper_dof = robot_state_->hand_state().get_size();
+
+    // Use the raw state vectors directly instead of copying element by element.
+    std::vector<double> joint_arm_positions = *pos_states_;
+    std::vector<double> joint_arm_velocities = *vel_states_;
+    std::vector<double> joint_arm_efforts = *tau_states_;
+
+    std::vector<double> gravity(arm_dof, 0.0);
+    std::vector<double> coriolis(arm_dof, 0.0);
+    std::vector<double> friction(arm_dof, 0.0);
+
+    // GetGravity/GetCoriolis read/write exactly GetNumJoints() (KDL chain)
+    // elements through raw pointers. If any buffer is smaller they overrun and
+    // crash with SIGSEGV -- which happens when fewer motors than URDF joints are
+    // detected on the CAN bus (arm_dof = detected motor count < njoints). Guard
+
+    // Gravity + Coriolis computed from the CURRENT measured state.
+    // Wrapped in try/catch to surface any exception the dynamics (KDL) throws
+    // instead of dying silently. NOTE: a SIGSEGV is NOT a C++ exception and
+    // won't be caught here (the crash_handler backtrace covers that case).
+    try {
+        if (role_ == ROLE_LEADER) {
+            dynamics_l_->GetGravity(joint_arm_positions.data(), gravity.data());
+            dynamics_l_->GetCoriolis(joint_arm_positions.data(), joint_arm_velocities.data(),
+                                     coriolis.data());
+
+        } else if (role_ == ROLE_FOLLOWER) {
+            dynamics_f_->GetGravity(joint_arm_positions.data(), gravity.data());
+            dynamics_f_->GetCoriolis(joint_arm_positions.data(), joint_arm_velocities.data(),
+                                     coriolis.data());
+        }
+    } catch (const std::exception& e) {
+        fprintf(stderr, "[toSim_step] GetGravity/GetCoriolis threw std::exception: %s\n", e.what());
+        fflush(stderr);
+        return false;
+    } catch (...) {
+        fprintf(stderr, "[toSim_step] GetGravity/GetCoriolis threw unknown exception\n");
+        fflush(stderr);
+        return false;
+    }
+
+    // Friction (arm joints only)
+    for (size_t i = 0; i < joint_arm_velocities.size(); ++i)
+        ComputeFriction(joint_arm_velocities.data(), friction.data(), i);
+
+    // Command the arm to hold its CURRENT position/velocity (straight from the
+    // state pointers), with gravity + friction as feed-forward effort.
+    for (size_t i = 0; i < arm_dof; ++i) {
+        joint_arm_states[i].effort = gravity[i] + friction[i];
+    }
+
+    std::vector<MotorState> motor_arm_states =
+        openarmjointconverter_->joint_to_motor(joint_arm_states);
+
+    // kp kd q dq tau
+    // arm_dof (from robot_state) also counts the gripper joint (7 arm + 1 gripper),
+    // but the arm's CAN device collection only holds the 7 arm motors. Sending 8
+    // MIT commands to a 7-motor arm overruns get_dm_devices()[i] in mit_control_one
+    // -> SIGSEGV. Command only the real arm motors here; gripper is separate.
+    const size_t arm_motor_n = openarm_->get_arm().get_motors().size();
+    std::vector<openarm::damiao_motor::MITParam> arm_cmds;
+    arm_cmds.reserve(arm_motor_n);
+    for (size_t i = 0; i < arm_motor_n && i < motor_arm_states.size(); ++i) {
+        arm_cmds.emplace_back(openarm::damiao_motor::MITParam{
+            Kp_[i], Kd_[i], motor_arm_states[i].position, motor_arm_states[i].velocity,
+            motor_arm_states[i].effort});
+    }
+
+    // gripper command mit param
+    // std::vector<openarm::damiao_motor::MITParam> gripper_cmds;
+    // gripper_cmds.reserve(gripper_dof);
+    // for (size_t i = 0; i < gripper_dof; ++i) {
+    //     gripper_cmds.emplace_back(openarm::damiao_motor::MITParam{
+    //         Kp_[i + arm_dof], Kd_[i + arm_dof], motor_gripper_states[i].position,
+    //         motor_gripper_states[i].velocity, motor_gripper_states[i].effort});
+    // }
+
+    // send command to arm
+    openarm_->get_arm().mit_control_all(arm_cmds);
+    // send command to gripper
+    //openarm_->get_gripper().mit_control_all(gripper_cmds);
+
+    // NOTE: no sleep here. toSim_step() runs inside the ros2_control write()
+    // cycle (RT loop). Sleeping would stall the loop, hold the resource_manager
+    // lock and make controller loading time out. read() already handles recv.
     openarm_->recv_all(220);
 
     return true;
