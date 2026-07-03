@@ -98,6 +98,7 @@ public:
     bool bilateral_step();
     bool unilateral_step();
     bool toSim_step();
+    bool toSim_unilateral_step();
     // NOTE! Control() class operates on "joints", while the underlying
     // classes operates on "actuators". The following functions map
     // joints to actuators.

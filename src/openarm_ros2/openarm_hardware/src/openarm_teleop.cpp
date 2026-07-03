@@ -189,7 +189,8 @@ hardware_interface::return_type OpenArmHWTeleOp::read(
 
 hardware_interface::return_type OpenArmHWTeleOp::write(
     const rclcpp::Time& time, const rclcpp::Duration& period) {
-        control_->toSim_step();
+        //control_->toSim_step();
+        control_->toSim_unilateral_step();
   return hardware_interface::return_type::OK;
 }
 

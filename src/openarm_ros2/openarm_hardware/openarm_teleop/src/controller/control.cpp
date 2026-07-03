@@ -239,7 +239,30 @@ bool Control::bilateral_step() {
 
 
 
-// add new function to handle teleto sim
+// -----------------------------------------------------------------------------
+// toSim_step()
+//
+// Bilateral-based control step adapted for the "to simulation" data path.
+//
+// This is the same idea as bilateral_step(), but the measured state does NOT
+// come from the physical CAN motors. Instead it is fed in from the simulator
+// through the pos_states_ / vel_states_ / tau_states_ pointers (populated by the
+// ros2_control hardware interface). The step then:
+//   1. Builds joint states from those raw state vectors.
+//   2. Publishes them as the arm response in robot_state_.
+//   3. Computes gravity + Coriolis (dynamics) and joint friction.
+//   4. Commands the real arm motors to hold their current position/velocity with
+//      gravity + friction as feed-forward effort (gravity compensation).
+//
+// Key differences vs bilateral_step():
+//   - Arm only; the gripper path is disabled.
+//   - Reads state from the sim pointers, not from get_motors().
+//   - Extra safety guards: empty-state check, try/catch around the KDL dynamics,
+//     and commanding only the real arm motor count to avoid buffer overruns.
+//   - No sleep: it runs inside the RT ros2_control write() cycle.
+//
+// Returns false (skips the step) on bad input or a dynamics exception.
+// -----------------------------------------------------------------------------
 bool Control::toSim_step() {
     // get motor status
     // std::vector<MotorState> arm_motor_states;
@@ -356,6 +379,122 @@ bool Control::toSim_step() {
     // cycle (RT loop). Sleeping would stall the loop, hold the resource_manager
     // lock and make controller loading time out. read() already handles recv.
     openarm_->recv_all(220);
+
+    return true;
+}
+
+// -----------------------------------------------------------------------------
+// toSim_unilateral_step()
+//
+// Unilateral-based control step adapted for the "to simulation" data path.
+//
+// This mirrors unilateral_step() but, like toSim_step(), takes the measured
+// state from the simulator (pos_states_ / vel_states_ / tau_states_) instead of
+// the physical CAN motors, and works on the arm only (no gripper).
+//
+//   ROLE_LEADER:   free/gravity-compensation mode. Commands Kp = Kd = 0 with
+//                  effort = gravity + friction*0.3 + coriolis*0.1 so the arm
+//                  floats while feeding force back to the operator.
+//   ROLE_FOLLOWER: position-tracking mode. Takes the arm references from
+//                  robot_state_ and commands them with Kp/Kd (effort = 0).
+//
+// Same safety guards as toSim_step(): empty-state check, try/catch around the
+// KDL dynamics, commanding only the real arm motor count, and no sleep (runs
+// inside the RT ros2_control write() cycle).
+//
+// Returns false (skips the step) on bad input or a dynamics exception.
+// -----------------------------------------------------------------------------
+bool Control::toSim_unilateral_step() {
+    // Build joint states from the simulator's raw state vectors instead of the
+    // physical motors.
+    std::vector<JointState> joint_arm_states =
+        openarmjointconverter_->states_to_joint(pos_states_, vel_states_, tau_states_);
+
+    // Empty means null pointer or size mismatch (already logged by the
+    // converter); skip this step instead of pushing bad data.
+    if (joint_arm_states.empty()) {
+        return false;
+    }
+    robot_state_->arm_state().set_all_responses(joint_arm_states);
+
+    size_t arm_dof = robot_state_->arm_state().get_size();
+
+    // Use the raw state vectors directly instead of copying element by element.
+    std::vector<double> joint_arm_positions = *pos_states_;
+    std::vector<double> joint_arm_velocities = *vel_states_;
+
+    // arm_dof (from robot_state) also counts the gripper joint (7 arm + 1
+    // gripper), but the arm's CAN device collection only holds the real arm
+    // motors. Command only those to avoid overrunning get_dm_devices()[i].
+    const size_t arm_motor_n = openarm_->get_arm().get_motors().size();
+
+    if (role_ == ROLE_LEADER) {
+        std::vector<double> gravity(arm_dof, 0.0);
+        std::vector<double> coriolis(arm_dof, 0.0);
+        std::vector<double> friction(arm_dof, 0.0);
+
+        // Gravity + Coriolis from the CURRENT measured (sim) state. Wrapped in
+        // try/catch to surface any KDL exception instead of dying silently.
+        // NOTE: a SIGSEGV is NOT a C++ exception and won't be caught here.
+        try {
+            dynamics_l_->GetGravity(joint_arm_positions.data(), gravity.data());
+            dynamics_l_->GetCoriolis(joint_arm_positions.data(), joint_arm_velocities.data(),
+                                     coriolis.data());
+        } catch (const std::exception& e) {
+            fprintf(stderr, "[toSim_unilateral_step] GetGravity/GetCoriolis threw: %s\n", e.what());
+            fflush(stderr);
+            return false;
+        } catch (...) {
+            fprintf(stderr, "[toSim_unilateral_step] GetGravity/GetCoriolis threw unknown\n");
+            fflush(stderr);
+            return false;
+        }
+
+        // Friction (arm joints only).
+        for (size_t i = 0; i < joint_arm_velocities.size(); ++i)
+            ComputeFriction(joint_arm_velocities.data(), friction.data(), i);
+
+        // Torque command: gravity comp + damping, no position/velocity gains.
+        std::vector<JointState> joint_arm_state_torque(arm_dof);
+        for (size_t i = 0; i < arm_dof; ++i) {
+            joint_arm_state_torque[i].position = joint_arm_positions[i];
+            joint_arm_state_torque[i].velocity = joint_arm_velocities[i];
+            joint_arm_state_torque[i].effort = gravity[i] + friction[i] * 0.3 + coriolis[i] * 0.1;
+        }
+
+        std::vector<MotorState> motor_arm_states =
+            openarmjointconverter_->joint_to_motor(joint_arm_state_torque);
+
+        std::vector<openarm::damiao_motor::MITParam> arm_cmds;
+        arm_cmds.reserve(arm_motor_n);
+        for (size_t i = 0; i < arm_motor_n && i < motor_arm_states.size(); ++i) {
+            arm_cmds.emplace_back(
+                openarm::damiao_motor::MITParam{0.0, 0.0, 0.0, 0.0, motor_arm_states[i].effort});
+        }
+
+        openarm_->get_arm().mit_control_all(arm_cmds);
+        openarm_->recv_all(220);
+        return true;
+
+    } else if (role_ == ROLE_FOLLOWER) {
+        // Track the arm references coming from robot_state_ with Kp/Kd.
+        std::vector<JointState> joint_arm_states_ref =
+            robot_state_->arm_state().get_all_references();
+
+        std::vector<MotorState> arm_motor_refs =
+            openarmjointconverter_->joint_to_motor(joint_arm_states_ref);
+
+        std::vector<openarm::damiao_motor::MITParam> arm_cmds;
+        arm_cmds.reserve(arm_motor_n);
+        for (size_t i = 0; i < arm_motor_n && i < arm_motor_refs.size(); ++i) {
+            arm_cmds.emplace_back(openarm::damiao_motor::MITParam{
+                Kp_[i], Kd_[i], arm_motor_refs[i].position, arm_motor_refs[i].velocity, 0.0});
+        }
+
+        openarm_->get_arm().mit_control_all(arm_cmds);
+        openarm_->recv_all(220);
+        return true;
+    }
 
     return true;
 }

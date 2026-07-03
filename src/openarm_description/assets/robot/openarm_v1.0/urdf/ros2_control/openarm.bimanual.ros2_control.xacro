@@ -28,9 +28,7 @@ limitations under the License.
              can_fd:=^|true">
 
     <!-- Left Arm Hardware Interface -->
-    <ros2_control name="openarm_left_hardware_interface" type="system"
-                  is_async="${'true' if use_teleop == 1 else 'false'}"
-                  rw_rate="${1000 if use_teleop == 1 else 0}">
+    <ros2_control name="openarm_left_hardware_interface" type="system">
         <hardware>
           <param name="arm_type">${arm_type}</param>
           <xacro:if value="${use_fake_hardware}">
@@ -101,9 +99,7 @@ limitations under the License.
     </ros2_control>
 
     <!-- Right Arm Hardware Interface -->
-    <ros2_control name="openarm_right_hardware_interface" type="system"
-                  is_async="${'true' if use_teleop == 1 else 'false'}"
-                  rw_rate="${1000 if use_teleop == 1 else 0}">
+    <ros2_control name="openarm_right_hardware_interface" type="system">
         <hardware>
           <param name="arm_type">${arm_type}</param>
           <xacro:if value="${use_fake_hardware}">

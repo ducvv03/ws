@@ -28,9 +28,7 @@ limitations under the License.
              use_teleop:=^|false"
              >
 
-    <ros2_control name="openarm_hardware_interface" type="system"
-                  is_async="${'true' if use_teleop == 1 else 'false'}"
-                  rw_rate="${1000 if use_teleop == 1 else 0}">
+    <ros2_control name="openarm_hardware_interface" type="system">
         <hardware>
           <param name="arm_type">${arm_type}</param>
           <param name="prefix">${arm_prefix}</param>
