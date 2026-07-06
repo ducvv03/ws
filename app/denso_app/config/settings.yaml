@@ -1,0 +1,21 @@
+# ============================================================
+#  settings.yaml  —  Robot run/operation parameters
+# ------------------------------------------------------------
+#  Runtime knobs for HOW the mission is executed.
+#  (The mission graph & route live separately in mission.yaml.)
+# ============================================================
+
+settings:
+  # 1) Arrival-check loop period.
+  #    How often to poll whether the robot has reached the current node.
+  #    The "is it there yet?" loop runs every this many seconds.
+  arrival_check_period: 0.1     # seconds (e.g. 0.1 = check 10x per second)
+
+  # 2) Max operating time.
+  #    After running this long the robot stops and rests.
+  #    Set to 0 to disable the limit (run until the path/loops finish).
+  max_run_time: 300.0           # seconds (300 = 5 minutes)
+
+  # 3) Number of loops of the whole path.
+  #    1 = run once, N = repeat N times, 0 = loop forever.
+  loops: 1

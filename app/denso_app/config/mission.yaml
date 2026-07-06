@@ -1,0 +1,32 @@
+# ============================================================
+#  mission.yaml  —  Robot node graph
+# ------------------------------------------------------------
+#  Each node declares which nodes it can travel to.
+#    name   : node id (pushed to the motion layer)
+#    type   : node kind  ->  waypoint | pick | drop | hold | scan | approach
+#             (NOTE: "home" is NOT a type; HOME is just a waypoint node)
+#    routes : list of other nodes reachable FROM this node
+# ============================================================
+
+# -------- The route you want to run (order of nodes to visit) --------
+#  Every consecutive pair MUST be a legal edge (listed in the
+#  source node's `routes`). You may repeat nodes.
+mission:
+  path: [HOME, PRE_PICK, PICK, PRE_PICK, HOME]
+
+nodes:
+  - name:   HOME
+    type:   waypoint
+    routes: [PRE_PICK, PICK, LIFT]
+
+  - name:   PRE_PICK
+    type:   waypoint
+    routes: [HOME, PICK]
+
+  - name:   PICK
+    type:   pick
+    routes: [HOME, PRE_PICK, LIFT]
+
+  - name:   LIFT
+    type:   hold
+    routes: [HOME, PICK]
