@@ -28,7 +28,7 @@
 #include "openarm_hardware/visibility_control.h"
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/state.hpp"
-#include "openarm_hardware/dynamics.hpp"
+#include <controller/dynamics.hpp>
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "rclcpp/rclcpp.hpp"
 
@@ -77,7 +77,7 @@ class OpenArmHW : public hardware_interface::SystemInterface {
   hardware_interface::return_type write(
       const rclcpp::Time& time, const rclcpp::Duration& period) override;
 
- private:
+ protected:
 
   rclcpp::Node::SharedPtr telemetry_node_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr pub_states_up_;

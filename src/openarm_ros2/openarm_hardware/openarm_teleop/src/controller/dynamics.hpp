@@ -56,6 +56,11 @@ public:
     ~Dynamics();
 
     bool Init();
+
+    // Number of joints in the KDL chain. GetGravity/GetCoriolis read/write
+    // exactly this many elements, so callers must size their buffers to it.
+    size_t GetNumJoints() const { return kdl_chain.getNrOfJoints(); }
+
     void GetGravity(const double *motor_position, double *gravity);
     void GetCoriolis(const double *motor_position, const double *motor_velocity, double *coriolis);
     void GetMassMatrixDiagonal(const double *motor_position, double *inertia_diag);

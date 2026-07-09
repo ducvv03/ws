@@ -24,6 +24,7 @@ limitations under the License.
              hand:=^|true
              left_arm_prefix:=^|left_
              right_arm_prefix:=^|right_
+             use_teleop:=^|false
              can_fd:=^|true">
 
     <!-- Left Arm Hardware Interface -->
@@ -36,7 +37,12 @@ limitations under the License.
             <param name="state_following_offset">0.0</param>
           </xacro:if>
           <xacro:unless value="${use_fake_hardware}">
-            <plugin>openarm_hardware/OpenArmHW</plugin>
+            <xacro:if value="${use_teleop}">
+              <plugin>openarm_hardware_teleop/OpenArmHWTeleOp</plugin>
+            </xacro:if>
+            <xacro:unless value="${use_teleop}">
+              <plugin>openarm_hardware/OpenArmHW</plugin>
+            </xacro:unless>
             <param name="can_interface">${left_can_interface}</param>
             <param name="arm_prefix">${left_arm_prefix}</param>
             <param name="hand">${hand}</param>
@@ -102,7 +108,12 @@ limitations under the License.
             <param name="state_following_offset">0.0</param>
           </xacro:if>
           <xacro:unless value="${use_fake_hardware}">
-            <plugin>openarm_hardware/OpenArmHW</plugin>
+            <xacro:if value="${use_teleop}">
+              <plugin>openarm_hardware_teleop/OpenArmHWTeleOp</plugin>
+            </xacro:if>
+            <xacro:unless value="${use_teleop}">
+              <plugin>openarm_hardware/OpenArmHW</plugin>
+            </xacro:unless>
             <param name="can_interface">${right_can_interface}</param>
             <param name="arm_prefix">${right_arm_prefix}</param>
             <param name="hand">${hand}</param>

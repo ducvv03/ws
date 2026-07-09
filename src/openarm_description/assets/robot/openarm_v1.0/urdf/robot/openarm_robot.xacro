@@ -31,6 +31,7 @@ limitations under the License.
             ros2_control:=false
             can_interface:=''
             use_fake_hardware:=false
+            use_teleop:=false
             use_fake_hand:=true
             fake_sensor_commands:=false
             no_prefix:='false'
@@ -115,6 +116,7 @@ limitations under the License.
             left_can_interface="${left_can_interface}"
             right_can_interface="${right_can_interface}"
             use_fake_hardware="${use_fake_hardware}"
+            use_teleop="${use_teleop}"
             fake_sensor_commands="${fake_sensor_commands}"
             left_arm_prefix="${left_arm_prefix}"
             right_arm_prefix="${right_arm_prefix}"
@@ -145,6 +147,7 @@ limitations under the License.
                 arm_prefix="${arm_prefix_modified}"
                 can_interface="${can_interface}"
                 use_fake_hardware="${use_fake_hardware}"
+                use_teleop="${use_teleop}"
                 fake_sensor_commands="${fake_sensor_commands}"
                 hand="true"
                 can_fd="${can_fd}"/>

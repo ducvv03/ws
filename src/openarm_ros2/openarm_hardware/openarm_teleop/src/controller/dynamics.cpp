@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "openarm_hardware/dynamics.hpp"
+#include <controller/dynamics.hpp>
 
 Dynamics::Dynamics(std::string urdf_path, std::string start_link, std::string end_link) {
     this->urdf_path = urdf_path;
@@ -60,12 +60,13 @@ bool Dynamics::Init() {
     gravity_forces.data.setZero();
     inertia_matrix.data.setZero();
 
-    solver = std::make_unique<KDL::ChainDynParam>(kdl_chain, KDL::Vector(0, 0.0, -10.5));
+    solver = std::make_unique<KDL::ChainDynParam>(kdl_chain, KDL::Vector(0, 0.0, -9.81));
 
     return true;
 }
 
 void Dynamics::GetGravity(const double *motor_position, double *gravity) {
+    
     const auto njoints = kdl_chain.getNrOfJoints();
 
     KDL::JntArray q_(kdl_chain.getNrOfJoints());
