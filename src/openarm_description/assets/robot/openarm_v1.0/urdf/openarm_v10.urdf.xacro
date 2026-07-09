@@ -41,6 +41,12 @@ limitations under the License.
   <xacro:arg name="left_arm_base_xyz" default="0.0 0.031 0.698" />
   <xacro:arg name="left_arm_base_rpy" default="-1.5708 0 0" />
   <xacro:arg name="can_fd" default="true" />
+  <xacro:arg name="use_head_vertical" default="false" />
+  <xacro:arg name="use_head_horizontal" default="false" />
+  <xacro:arg name="head_vertical_can_interface" default="can1" />
+  <xacro:arg name="head_horizontal_can_interface" default="can0" />
+  <xacro:arg name="head_vertical_can_id" default="0x22" />
+  <xacro:arg name="head_horizontal_can_id" default="0x23" />
   <xacro:property name="arm_cfg_root" value="$(find openarm_description)/assets/robot/openarm_v1.0/config/arm" />
   <xacro:property name="body_cfg_root" value="$(find openarm_description)/assets/robot/openarm_v1.0/config/body" />
   <xacro:property name="parallel_link_cfg_root" value="$(find openarm_description)/assets/end_effector/parallel_link/config" />
@@ -79,6 +85,12 @@ limitations under the License.
   right_arm_base_rpy="$(arg right_arm_base_rpy)"
   left_arm_base_rpy="$(arg left_arm_base_rpy)"
   can_fd="$(arg can_fd)"
+  use_head_vertical="$(arg use_head_vertical)"
+  use_head_horizontal="$(arg use_head_horizontal)"
+  head_vertical_can_interface="$(arg head_vertical_can_interface)"
+  head_horizontal_can_interface="$(arg head_horizontal_can_interface)"
+  head_vertical_can_id="$(arg head_vertical_can_id)"
+  head_horizontal_can_id="$(arg head_horizontal_can_id)"
   />
 
   <xacro:include filename="$(find revo2_description)/urdf/revo2_left_hand.urdf.xacro" />

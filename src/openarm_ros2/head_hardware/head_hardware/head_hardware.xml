@@ -1,0 +1,9 @@
+<library path="head_hardware">
+  <class name="head_hardware/HeadHw"
+         type="head_hardware::HeadHw"
+         base_class_type="hardware_interface::SystemInterface">
+    <description>
+      ros2_control hardware interface for the OpenArm head (Damiao CAN joint).
+    </description>
+  </class>
+</library>

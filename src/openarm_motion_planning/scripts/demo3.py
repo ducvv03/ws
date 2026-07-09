@@ -14,6 +14,7 @@ from rclpy.executors import MultiThreadedExecutor
 
 from geometry_msgs.msg import Pose
 from sensor_msgs.msg import JointState
+from std_msgs.msg import Empty
 from shape_msgs.msg import SolidPrimitive
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
@@ -55,6 +56,25 @@ class MoveDualArmHybrid(Node):
         # 3. Targets (Bây giờ CHỈ CẦN LƯỢT ĐI)
         self.left_targets = self.define_targets()
 
+        # 4. Cờ dừng: bật lên khi Ctrl+C để các vòng streaming đang chạy thoát ra,
+        #    còn action lúc dừng (nhả vật + về Home) vẫn được gửi đi.
+        self._stop_event = threading.Event()
+        self._shutdown_done = False
+        # Tư thế Home an toàn để đưa 2 tay về khi dừng (7 joint / mỗi tay)
+        self.home_positions = [0.0] * 7
+
+        # 5. Thời gian GIỮ vật trước khi tự lùi lại (thay cho press Enter).
+        self.hold_delay_sec = 3.0
+
+        # 6. Điều khiển TỪ XA (chạy trên máy khác cùng ROS_DOMAIN_ID):
+        #    - publish /demo3/next  -> bỏ chờ, đi tiếp ngay
+        #    - publish /demo3/stop  -> gửi action dừng an toàn (nhả vật + về Home)
+        self._next_trigger = threading.Event()
+        self.next_sub = self.create_subscription(
+            Empty, "/demo3/next", self._on_next_cmd, 10, callback_group=self.cb_group)
+        self.stop_sub = self.create_subscription(
+            Empty, "/demo3/stop", self._on_stop_cmd, 10, callback_group=self.cb_group)
+
     # ============================================================
     # TỌA ĐỘ CHỈ CẦN LƯỢT ĐI CHO TAY TRÁI
     # ============================================================
@@ -82,6 +102,29 @@ class MoveDualArmHybrid(Node):
 
     def joint_state_callback(self, msg):
         self.current_joint_state = msg
+
+    # ── Lệnh điều khiển từ xa qua topic (từ máy khác) ──
+    def _on_next_cmd(self, msg):
+        self.get_logger().info("Nhận /demo3/next -> bỏ chờ, đi tiếp ngay.")
+        self._next_trigger.set()
+
+    def _on_stop_cmd(self, msg):
+        self.get_logger().warn("Nhận /demo3/stop -> gửi action dừng an toàn.")
+        self.send_shutdown_actions()
+
+    def wait_hold(self, seconds):
+        """Giữ vật: chờ 'seconds' giây HOẶC tới khi có /demo3/next.
+        Ctrl+C hoặc /demo3/stop (bật _stop_event) sẽ cắt ngay."""
+        self._next_trigger.clear()
+        t0 = time.time()
+        while rclpy.ok() and not self._stop_event.is_set():
+            if self._next_trigger.is_set():
+                self.get_logger().info("Có /demo3/next -> đi tiếp.")
+                return
+            if time.time() - t0 >= seconds:
+                self.get_logger().info(f"Hết {seconds:.1f}s giữ vật -> tự lùi lại.")
+                return
+            time.sleep(0.05)
 
     def parse_target(self, target):
         if isinstance(target, tuple) and len(target) == 2:
@@ -212,7 +255,7 @@ class MoveDualArmHybrid(Node):
     # ============================================================
     # TRANSFORM TRAJECTORY AND SEND TOPIC (Streaming)
     # ============================================================
-    def execute_by_streaming(self, dual_trajectory):
+    def execute_by_streaming(self, dual_trajectory, ignore_stop=False):
         if not dual_trajectory.joint_trajectory.points:
             return
 
@@ -248,6 +291,11 @@ class MoveDualArmHybrid(Node):
         for p in stream_pts:
             if not rclpy.ok():
                 break
+            # Đang có yêu cầu dừng -> cắt ngang chuyển động bình thường.
+            # (action lúc dừng gọi với ignore_stop=True nên vẫn chạy tới cùng)
+            if self._stop_event.is_set() and not ignore_stop:
+                self.get_logger().warn("Streaming bị cắt do có yêu cầu DỪNG.")
+                break
 
             msg_l = JointTrajectory()
             msg_l.joint_names = names_l
@@ -271,6 +319,64 @@ class MoveDualArmHybrid(Node):
             time.sleep(0.02)
 
     # ============================================================
+    # ĐỌC VỊ TRÍ 2 TAY HIỆN TẠI (từ /joint_states)
+    # ============================================================
+    def get_current_arm_positions(self):
+        if self.current_joint_state is None:
+            return None, None
+        name_to_pos = dict(zip(self.current_joint_state.name, self.current_joint_state.position))
+        left = [name_to_pos.get(f"openarm_left_joint{i + 1}") for i in range(7)]
+        right = [name_to_pos.get(f"openarm_right_joint{i + 1}") for i in range(7)]
+        if any(v is None for v in left + right):
+            return None, None
+        return left, right
+
+    def build_dual_traj(self, left_start, right_start, left_end, right_end):
+        """Quỹ đạo 2 điểm (hiện tại -> đích) cho cả 2 tay; execute_by_streaming
+        sẽ nội suy mượt ở giữa."""
+        traj = RobotTrajectory()
+        traj.joint_trajectory.joint_names = [f"openarm_left_joint{i + 1}" for i in range(7)] + \
+                                            [f"openarm_right_joint{i + 1}" for i in range(7)]
+        for combo in (list(left_start) + list(right_start), list(left_end) + list(right_end)):
+            pt = JointTrajectoryPoint()
+            pt.positions = combo
+            traj.joint_trajectory.points.append(pt)
+        return traj
+
+    # ============================================================
+    # ACTION LÚC DỪNG: chỉ chạy KHI ĐANG DỪNG LẠI (Ctrl+C)
+    # -> nhả vật + đưa 2 tay về Home an toàn rồi mới thoát.
+    # ============================================================
+    def send_shutdown_actions(self):
+        if self._shutdown_done:
+            return
+        self._shutdown_done = True
+        # Bật cờ để cắt mọi chuyển động bình thường đang chạy ở planning_thread
+        self._stop_event.set()
+        self.get_logger().warn("=== NHẬN TÍN HIỆU DỪNG -> GỬI CÁC ACTION AN TOÀN ===")
+
+        # 1. Nhả vật (mở tay)
+        try:
+            self.control_hands(close=False)
+            time.sleep(0.5)
+        except Exception as e:
+            self.get_logger().error(f"Lỗi mở tay lúc dừng: {e}")
+
+        # 2. Đưa 2 tay về Home (mượt). ignore_stop=True để không bị chính cờ dừng cắt.
+        left_cur, right_cur = self.get_current_arm_positions()
+        if left_cur is None:
+            self.get_logger().warn("Chưa có /joint_states -> bỏ qua bước về Home.")
+        else:
+            self.get_logger().info("Đưa 2 tay về Home...")
+            dual = self.build_dual_traj(left_cur, right_cur, self.home_positions, self.home_positions)
+            try:
+                self.execute_by_streaming(dual, ignore_stop=True)
+            except Exception as e:
+                self.get_logger().error(f"Lỗi khi về Home lúc dừng: {e}")
+
+        self.get_logger().info("=== ĐÃ GỬI XONG ACTION DỪNG AN TOÀN ===")
+
+    # ============================================================
     # BACKGROUND THREAD
     # ============================================================
     def planning_thread(self):
@@ -291,7 +397,7 @@ class MoveDualArmHybrid(Node):
         saved_trajectories = []
 
         for i in range(len(self.left_targets)):
-            if not rclpy.ok(): break
+            if not rclpy.ok() or self._stop_event.is_set(): break
             self.get_logger().info(f"\n--- Planning segment {i} -> {i + 1} ---")
 
             t_left, tag = self.parse_target(self.left_targets[i])
@@ -322,10 +428,15 @@ class MoveDualArmHybrid(Node):
 
             elif tag == "WAIT_ENTER":
                 print("\n\033[93m" + "=" * 50)
-                print(" ĐÃ NHẤC VẬT LÊN CAO. NHẤN PHÍM [ENTER] ĐỂ LÙI LẠI TRẢ VẬT! ")
+                print(f" ĐÃ NHẤC VẬT LÊN CAO. CHỜ {self.hold_delay_sec:.0f}s RỒI TỰ LÙI LẠI TRẢ VẬT ")
+                print(" (máy khác có thể publish /demo3/next để đi tiếp ngay) ")
                 print("=" * 50 + "\033[0m\n")
-                input()
+                self.wait_hold(self.hold_delay_sec)  # delay thay cho press Enter
                 break  # Đã xong lượt đi, thoát vòng lặp để sang giai đoạn 2
+
+        if self._stop_event.is_set() or len(saved_trajectories) < 4:
+            self.get_logger().warn("Dừng trước khi hoàn tất lượt đi -> bỏ qua lượt về.")
+            return
 
         self.get_logger().info("--- GIAI ĐOẠN 2: LƯỢT VỀ (ĐẢO NGƯỢC QUỸ ĐẠO CŨ) ---")
         # Lúc này saved_trajectories có 4 phần tử ứng với 4 chặng:
@@ -369,7 +480,13 @@ def main():
     try:
         executor.spin()
     except KeyboardInterrupt:
-        pass
+        # ĐANG DỪNG LẠI -> gửi các action an toàn TRƯỚC khi tắt node.
+        # (rclpy vẫn còn ok ở đây nên publish tới controller vẫn ăn)
+        node.get_logger().warn("Ctrl+C -> đang dừng, gửi action an toàn...")
+        try:
+            node.send_shutdown_actions()
+        except Exception as e:
+            node.get_logger().error(f"Lỗi khi gửi action dừng: {e}")
     finally:
         node.destroy_node()
         rclpy.try_shutdown()
