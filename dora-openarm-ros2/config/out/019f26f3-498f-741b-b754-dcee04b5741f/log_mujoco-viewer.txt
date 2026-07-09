@@ -1,0 +1,10 @@
+[model] Loading scene: ../../openarm_mujoco/v1/scene.xml
+[model] Collision (Contact) detection is DISABLED by default.
+[model] Warning: keyframe 'home' not found, using defaults.
+[loop] target_fps=30, effective_fps=30, model_timestep=0.002, steps_per_frame=17, loop_dt=0.0333333
+{"timestamp":"2026-07-03T07:48:27.654733Z","level":"WARN","fields":{"message":"Ignoring output `arm_right_observation` not in node's output list."},"target":"dora_node_api::node"}
+{"timestamp":"2026-07-03T07:48:27.655185Z","level":"WARN","fields":{"message":"Ignoring output `arm_left_observation` not in node's output list."},"target":"dora_node_api::node"}
+{"timestamp":"2026-07-03T07:48:27.657853Z","level":"INFO","fields":{"message":"","name":"MeterProvider.GlobalSet","message":"Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope()."},"target":"opentelemetry"}
+[dora] Event loop started.
+[dora] Event loop ended – signalling shutdown.
+[main] Shutdown complete.
