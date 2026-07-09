@@ -1,5 +1,0 @@
-{"timestamp":"2026-07-03T07:06:26.006245Z","level":"INFO","fields":{"message":"","name":"MeterProvider.GlobalSet","message":"Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope()."},"target":"opentelemetry"}
-[receiver] Listening on UDP 0.0.0.0:5006
-[receiver] validity: OK → INVALID (L=INVALID, R=INVALID)
-[receiver] validity: INVALID → STALE (L=OK, R=STALE)
-[receiver] validity: STALE → INVALID (L=INVALID, R=OK)

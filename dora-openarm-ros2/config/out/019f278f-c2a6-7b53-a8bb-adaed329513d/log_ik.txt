@@ -1,4 +1,0 @@
-Warning: keyframe 'home' not found, using defaults.
-{0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15}
-[7, 8, 16, 17]
-{"timestamp":"2026-07-03T10:39:21.936285Z","level":"WARN","fields":{"message":"Ignoring output `status` not in node's output list."},"target":"dora_node_api::node"}
