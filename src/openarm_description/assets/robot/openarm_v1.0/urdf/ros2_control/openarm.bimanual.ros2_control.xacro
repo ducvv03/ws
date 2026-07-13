@@ -25,6 +25,12 @@ limitations under the License.
              left_arm_prefix:=^|left_
              right_arm_prefix:=^|right_
              use_teleop:=^|false
+             use_head_vertical:=^|false
+             use_head_horizontal:=^|false
+             head_vertical_can_interface:=^|can0
+             head_horizontal_can_interface:=^|can1
+             head_vertical_can_id:=^|1
+             head_horizontal_can_id:=^|2
              can_fd:=^|true">
 
     <!-- Left Arm Hardware Interface -->
@@ -148,6 +154,49 @@ limitations under the License.
       <xacro:configure_joint joint_name="openarm_${right_arm_prefix}joint6" initial_position="0.0"/>
       <xacro:configure_joint joint_name="openarm_${right_arm_prefix}joint7" initial_position="0.0"/>
     </ros2_control>
+
+    <!-- Head Hardware Interface. Vertical and horizontal joints run on SEPARATE
+         CAN buses, so each is its own ros2_control component (one HeadHw instance
+         per CAN) and can be enabled independently. -->
+    <!-- Vertical head joint -->
+    <xacro:if value="${use_head_vertical}">
+      <ros2_control name="openarm_head_vertical_hardware_interface" type="system" is_async="true">
+        <hardware>
+          <xacro:if value="${use_fake_hardware}">
+            <plugin>mock_components/GenericSystem</plugin>
+          </xacro:if>
+          <xacro:unless value="${use_fake_hardware}">
+            <plugin>head_hardware/HeadHw</plugin>
+            <param name="can_interface">${head_vertical_can_interface}</param>
+            <param name="can_id">${head_vertical_can_id}</param>
+            <param name="can_fd">${can_fd}</param>
+            <param name="direction">vertical</param>
+          </xacro:unless>
+        </hardware>
+
+        <xacro:configure_joint joint_name="head_joint_vertical" initial_position="0.0"/>
+      </ros2_control>
+    </xacro:if>
+
+    <!-- Horizontal head joint -->
+    <xacro:if value="${use_head_horizontal}">
+      <ros2_control name="openarm_head_horizontal_hardware_interface" type="system" is_async="true">
+        <hardware>
+          <xacro:if value="${use_fake_hardware}">
+            <plugin>mock_components/GenericSystem</plugin>
+          </xacro:if>
+          <xacro:unless value="${use_fake_hardware}">
+            <plugin>head_hardware/HeadHw</plugin>
+            <param name="can_interface">${head_horizontal_can_interface}</param>
+            <param name="can_id">${head_horizontal_can_id}</param>
+            <param name="can_fd">${can_fd}</param>
+            <param name="direction">horizontal</param>
+          </xacro:unless>
+        </hardware>
+
+        <xacro:configure_joint joint_name="head_joint_horizontal" initial_position="0.0"/>
+      </ros2_control>
+    </xacro:if>
 
   </xacro:macro>
 

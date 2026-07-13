@@ -54,6 +54,12 @@ controller_manager:
     right_arm_pid_controller:
       type: openarm_pid_controller/PidController
 
+    # Head (head_hardware/HeadHw) -- 2 joints on 2 separate CAN buses.
+    # First bring-up: forward position passthrough only. Spawned only when a
+    # head joint is enabled (launch gates on use_head_vertical/horizontal).
+    head_forward_position_controller:
+      type: forward_command_controller/ForwardCommandController
+
 left_forward_position_controller:
   ros__parameters:
     joints:
@@ -582,3 +588,20 @@ right_arm_pid_controller:
         tracking_time_constant: 0.1
         error_deadband: 0.002
         save_i_term: false
+
+# Head forward position controller. Combined controller: claims BOTH head joints,
+# so both must be enabled together (enabling only one -> the missing interface
+# makes activation fail). Runs at 50 Hz (per-controller rate, decimated from the
+# 750 Hz controller_manager); joint_state_broadcaster above already covers the
+# head joints, so no separate broadcaster is needed.
+head_forward_position_controller:
+  ros__parameters:
+    update_rate: 50  # Hz -- decimated from the 750 Hz CM (750/50 = 15)
+    joints:
+      - head_joint_vertical
+      - head_joint_horizontal
+    interface_name: position
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position

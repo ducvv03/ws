@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2025 Enactic, Inc.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!--
+  Placeholder KINEMATIC model for the head (the ros2_control hardware interfaces
+  live in openarm.bimanual.ros2_control.xacro). Chain, mounted on the torso:
+
+      openarm_body_link0
+          |  head_joint_horizontal  (neck pan, about Z / vertical axis)
+      head_neck_link
+          |  head_joint_vertical    (head nod/tilt, about Y / side axis)
+      head_link
+
+  Simple box geometry with small inertias; swap in real meshes/limits later.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="openarm_head">
+
+  <xacro:macro name="openarm_head"
+    params="parent:='openarm_body_link0'
+            use_head_vertical:=false
+            use_head_horizontal:=false
+            xyz:='0 0 0.698'
+            rpy:='0 0 0'
+            lower:=${-pi/2}
+            upper:=${pi/2}
+            effort:=50.0
+            velocity:=3.14">
+
+    <!-- small reusable inertial for the placeholder links -->
+    <xacro:macro name="head_dummy_inertial">
+      <inertial>
+        <mass value="0.2" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <inertia ixx="0.001" ixy="0.0" ixz="0.0"
+                 iyy="0.001" iyz="0.0" izz="0.001" />
+      </inertial>
+    </xacro:macro>
+
+    <!-- The head (nod) mounts on the neck when the neck exists, else on the torso. -->
+    <xacro:property name="head_parent"
+                    value="${'head_neck_link' if use_head_horizontal else parent}" />
+
+    <!-- ===== Horizontal joint: neck pan about Z ===== -->
+    <xacro:if value="${use_head_horizontal}">
+      <link name="head_neck_link">
+        <visual>
+          <origin xyz="0 0 0.1" rpy="0 0 0" />
+          <geometry>
+            <cylinder radius="0.04" length="0.2" />
+          </geometry>
+          <material name="head_neck_material">
+            <color rgba="0.2 0.2 0.2 1.0" />
+          </material>
+        </visual>
+        <collision>
+          <origin xyz="0 0 0.1" rpy="0 0 0" />
+          <geometry>
+            <cylinder radius="0.04" length="0.2" />
+          </geometry>
+        </collision>
+        <xacro:head_dummy_inertial />
+      </link>
+
+      <joint name="head_joint_horizontal" type="revolute">
+        <parent link="${parent}" />
+        <child link="head_neck_link" />
+        <origin xyz="${xyz}" rpy="${rpy}" />
+        <axis xyz="0 0 1" />
+        <limit lower="${lower}" upper="${upper}" effort="${effort}" velocity="${velocity}" />
+      </joint>
+    </xacro:if>
+
+    <!-- ===== Vertical joint: head nod/tilt about Y ===== -->
+    <xacro:if value="${use_head_vertical}">
+      <link name="head_link">
+        <visual>
+          <origin xyz="0 0 0.06" rpy="0 0 0" />
+          <geometry>
+            <sphere radius="0.06" />
+          </geometry>
+          <material name="head_material">
+            <color rgba="0.8 0.8 0.8 1.0" />
+          </material>
+        </visual>
+        <!-- "nose" pointing forward (+X): asymmetric marker so the rotations
+             are actually visible (a bare sphere/cylinder looks identical when
+             spun about its own axis). -->
+        <visual>
+          <origin xyz="0.06 0 0.06" rpy="0 0 0" />
+          <geometry>
+            <box size="0.06 0.025 0.025" />
+          </geometry>
+          <material name="head_nose_material">
+            <color rgba="0.9 0.1 0.1 1.0" />
+          </material>
+        </visual>
+        <collision>
+          <origin xyz="0 0 0.06" rpy="0 0 0" />
+          <geometry>
+            <sphere radius="0.06" />
+          </geometry>
+        </collision>
+        <xacro:head_dummy_inertial />
+      </link>
+
+      <joint name="head_joint_vertical" type="revolute">
+        <parent link="${head_parent}" />
+        <child link="head_link" />
+        <origin xyz="0 0 0.2" rpy="0 0 0" />
+        <axis xyz="0 1 0" />
+        <limit lower="${lower}" upper="${upper}" effort="${effort}" velocity="${velocity}" />
+      </joint>
+    </xacro:if>
+
+  </xacro:macro>
+
+</robot>

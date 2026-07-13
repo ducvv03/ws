@@ -52,7 +52,10 @@ def namespace_from_context(context, arm_prefix):
 
 def generate_robot_description(context: LaunchContext, description_package, description_file,
                                arm_type, use_fake_hardware, use_fake_hand, right_can_interface, left_can_interface,
-                               use_teleop, hand_protocol, right_hand_can_interface, left_hand_can_interface, hands):
+                               use_teleop, hand_protocol, right_hand_can_interface, left_hand_can_interface, hands,
+                               use_head_vertical, use_head_horizontal,
+                               head_vertical_can_interface, head_horizontal_can_interface,
+                               head_vertical_can_id, head_horizontal_can_id):
     """Generate robot description using xacro processing."""
     description_package_str = context.perform_substitution(description_package)
     arm_type_str = context.perform_substitution(arm_type)
@@ -65,6 +68,12 @@ def generate_robot_description(context: LaunchContext, description_package, desc
     right_hand_can_str = context.perform_substitution(right_hand_can_interface)
     left_hand_can_str = context.perform_substitution(left_hand_can_interface)
     hands_str = context.perform_substitution(hands)
+    use_head_vertical_str = context.perform_substitution(use_head_vertical)
+    use_head_horizontal_str = context.perform_substitution(use_head_horizontal)
+    head_vertical_can_interface_str = context.perform_substitution(head_vertical_can_interface)
+    head_horizontal_can_interface_str = context.perform_substitution(head_horizontal_can_interface)
+    head_vertical_can_id_str = context.perform_substitution(head_vertical_can_id)
+    head_horizontal_can_id_str = context.perform_substitution(head_horizontal_can_id)
 
     folder_name, file_name = resolve_arm_config(arm_type_str)
 
@@ -92,6 +101,12 @@ def generate_robot_description(context: LaunchContext, description_package, desc
             "ros2_control": "true",
             "right_can_interface": right_can_interface_str,
             "left_can_interface": left_can_interface_str,
+            "use_head_vertical": use_head_vertical_str,
+            "use_head_horizontal": use_head_horizontal_str,
+            "head_vertical_can_interface": head_vertical_can_interface_str,
+            "head_horizontal_can_interface": head_horizontal_can_interface_str,
+            "head_vertical_can_id": head_vertical_can_id_str,
+            "head_horizontal_can_id": head_horizontal_can_id_str,
             # --- [ĐÃ SỬA] TRUYỀN ĐƯỜNG DẪN VÀO MAPPINGS ĐỂ XACRO KHÔNG BỊ LỖI ---
             # Selected by the hand_protocol launch argument: modbus | canfd | socketcan.
             "left_protocol_config_file": os.path.join(
@@ -113,7 +128,9 @@ def robot_nodes_spawner(context: LaunchContext, description_package, description
                         arm_type, use_fake_hardware, use_fake_hand, controllers_file,
                         right_can_interface, left_can_interface, arm_prefix, use_teleop,
                         hand_protocol, right_hand_can_interface, left_hand_can_interface,
-                        hands):
+                        hands, use_head_vertical, use_head_horizontal,
+                        head_vertical_can_interface, head_horizontal_can_interface,
+                        head_vertical_can_id, head_horizontal_can_id):
     """Spawn both robot state publisher and control nodes with shared robot description."""
     namespace = namespace_from_context(context, arm_prefix)
 
@@ -121,6 +138,9 @@ def robot_nodes_spawner(context: LaunchContext, description_package, description
         context, description_package, description_file, arm_type,
         use_fake_hardware, use_fake_hand, right_can_interface, left_can_interface,
         use_teleop, hand_protocol, right_hand_can_interface, left_hand_can_interface, hands,
+        use_head_vertical, use_head_horizontal,
+        head_vertical_can_interface, head_horizontal_can_interface,
+        head_vertical_can_id, head_horizontal_can_id,
     )
 
     controllers_file_str = context.perform_substitution(controllers_file)
@@ -141,6 +161,10 @@ def robot_nodes_spawner(context: LaunchContext, description_package, description
         parameters=[robot_description_param],
     )
 
+    # The head_forward_position_controller lives in the same controllers file as
+    # the arms (openarm_bimanual_controllers.yaml), so it is already loaded here;
+    # the launch only needs to spawn it when a head joint is enabled (see
+    # head_controller_spawner below).
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -325,6 +349,38 @@ def generate_launch_description():
             ),
         ),
         DeclareLaunchArgument(
+            "use_head_vertical",
+            default_value="false",
+            choices=["true", "false"],
+            description="Enable the vertical head joint (head_hardware/HeadHw).",
+        ),
+        DeclareLaunchArgument(
+            "use_head_horizontal",
+            default_value="false",
+            choices=["true", "false"],
+            description="Enable the horizontal head joint (head_hardware/HeadHw).",
+        ),
+        DeclareLaunchArgument(
+            "head_vertical_can_interface",
+            default_value="can1",
+            description="CAN interface for the vertical head joint (defaults to the left arm bus).",
+        ),
+        DeclareLaunchArgument(
+            "head_horizontal_can_interface",
+            default_value="can0",
+            description="CAN interface for the horizontal head joint (defaults to the right arm bus).",
+        ),
+        DeclareLaunchArgument(
+            "head_vertical_can_id",
+            default_value="0x22",
+            description="CAN id of the vertical head motor (decimal or 0x-hex).",
+        ),
+        DeclareLaunchArgument(
+            "head_horizontal_can_id",
+            default_value="0x23",
+            description="CAN id of the horizontal head motor (decimal or 0x-hex).",
+        ),
+        DeclareLaunchArgument(
             "controllers_file",
             default_value="openarm_bimanual_controllers.yaml",
             description="Controllers file to use.",
@@ -362,6 +418,12 @@ def generate_launch_description():
     right_hand_can_interface = LaunchConfiguration("right_hand_can_interface")
     left_hand_can_interface = LaunchConfiguration("left_hand_can_interface")
     hands = LaunchConfiguration("hands")
+    use_head_vertical = LaunchConfiguration("use_head_vertical")
+    use_head_horizontal = LaunchConfiguration("use_head_horizontal")
+    head_vertical_can_interface = LaunchConfiguration("head_vertical_can_interface")
+    head_horizontal_can_interface = LaunchConfiguration("head_horizontal_can_interface")
+    head_vertical_can_id = LaunchConfiguration("head_vertical_can_id")
+    head_horizontal_can_id = LaunchConfiguration("head_horizontal_can_id")
 
     try:
         camera_pkg_share = get_package_share_directory("openarm_bringup")
@@ -402,7 +464,10 @@ def generate_launch_description():
         args=[description_package, description_file, arm_type,
               use_fake_hardware, use_fake_hand, controllers_file,
               right_can_interface, left_can_interface, arm_prefix, use_teleop,
-              hand_protocol, right_hand_can_interface, left_hand_can_interface, hands]
+              hand_protocol, right_hand_can_interface, left_hand_can_interface, hands,
+              use_head_vertical, use_head_horizontal,
+              head_vertical_can_interface, head_horizontal_can_interface,
+              head_vertical_can_id, head_horizontal_can_id]
     )
 
     rviz_config_file = PathJoinSubstitution(
@@ -436,6 +501,26 @@ def generate_launch_description():
         function=controller_spawner,
         args=[robot_controller, arm_prefix]
     )
+
+    def head_controller_spawner(context: LaunchContext):
+        """Spawn the head forward controller only when a head joint is enabled."""
+        v = context.perform_substitution(use_head_vertical).lower() in ("true", "1")
+        h = context.perform_substitution(use_head_horizontal).lower() in ("true", "1")
+        if not (v or h):
+            return []
+        namespace = namespace_from_context(context, arm_prefix)
+        controller_manager_ref = (
+            f"/{namespace}/controller_manager" if namespace else "/controller_manager"
+        )
+        return [Node(
+            package="controller_manager",
+            executable="spawner",
+            namespace=namespace,
+            arguments=["head_forward_position_controller",
+                       "-c", controller_manager_ref],
+        )]
+
+    head_controller_spawner_func = OpaqueFunction(function=head_controller_spawner)
 
     def hand_controller_spawner_fn(context: LaunchContext):
         """Spawn one controller per hand that was actually instantiated.
@@ -488,6 +573,7 @@ def generate_launch_description():
         TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[joint_state_broadcaster_spawner]),
         TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[controller_spawner_func]),
         TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[hand_controller_spawner]),
+        TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[head_controller_spawner_func]),
         TimerAction(period=PID_SPAWN_DELAY_SECONDS, actions=[arm_pid_controller_spawner_func]),
     ]
 

@@ -49,6 +49,12 @@ limitations under the License.
             left_arm_prefix:='left_'
             right_arm_prefix:='right_'
             can_fd:='true'
+            use_head_vertical:=false
+            use_head_horizontal:=false
+            head_vertical_can_interface:=${left_can_interface}
+            head_horizontal_can_interface:=${right_can_interface}
+            head_vertical_can_id:='0x22'
+            head_horizontal_can_id:='0x23'
             "
             >
 
@@ -60,6 +66,8 @@ limitations under the License.
 
     <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/ros2_control/openarm.ros2_control.xacro" />
     <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/ros2_control/openarm.bimanual.ros2_control.xacro" />
+
+    <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/head/openarm_head.xacro" />
 
     <xacro:property name="arm_prefix_modified" value="${'' if arm_prefix == '' else arm_prefix + '_'}" />
     <xacro:property name="body_prefix_modified" value="${'' if body_prefix == '' else body_prefix + '_'}" />
@@ -120,8 +128,20 @@ limitations under the License.
             fake_sensor_commands="${fake_sensor_commands}"
             left_arm_prefix="${left_arm_prefix}"
             right_arm_prefix="${right_arm_prefix}"
+            use_head_vertical="${use_head_vertical}"
+            use_head_horizontal="${use_head_horizontal}"
+            head_vertical_can_interface="${head_vertical_can_interface}"
+            head_horizontal_can_interface="${head_horizontal_can_interface}"
+            head_vertical_can_id="${head_vertical_can_id}"
+            head_horizontal_can_id="${head_horizontal_can_id}"
             hand="true"/>
         </xacro:if>
+
+        <!-- head kinematic model (mounts on the torso, between the arms) -->
+        <xacro:openarm_head
+            parent="openarm_body_link0"
+            use_head_vertical="${use_head_vertical}"
+            use_head_horizontal="${use_head_horizontal}" />
     </xacro:if>
 
 
