@@ -67,6 +67,8 @@ limitations under the License.
     <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/ros2_control/openarm.ros2_control.xacro" />
     <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/ros2_control/openarm.bimanual.ros2_control.xacro" />
 
+    <xacro:include filename="$(find openarm_description)/assets/robot/openarm_v1.0/urdf/head/openarm_head.xacro" />
+
     <xacro:property name="arm_prefix_modified" value="${'' if arm_prefix == '' else arm_prefix + '_'}" />
     <xacro:property name="body_prefix_modified" value="${'' if body_prefix == '' else body_prefix + '_'}" />
 
@@ -134,6 +136,12 @@ limitations under the License.
             head_horizontal_can_id="${head_horizontal_can_id}"
             hand="true"/>
         </xacro:if>
+
+        <!-- head kinematic model (mounts on the torso, between the arms) -->
+        <xacro:openarm_head
+            parent="openarm_body_link0"
+            use_head_vertical="${use_head_vertical}"
+            use_head_horizontal="${use_head_horizontal}" />
     </xacro:if>
 
 

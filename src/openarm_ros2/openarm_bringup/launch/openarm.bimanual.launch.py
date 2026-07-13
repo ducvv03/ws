@@ -149,6 +149,10 @@ def robot_nodes_spawner(context: LaunchContext, description_package, description
         parameters=[robot_description_param],
     )
 
+    # The head_forward_position_controller lives in the same controllers file as
+    # the arms (openarm_bimanual_controllers.yaml), so it is already loaded here;
+    # the launch only needs to spawn it when a head joint is enabled (see
+    # head_controller_spawner below).
     control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
@@ -382,6 +386,26 @@ def generate_launch_description():
         args=[robot_controller, arm_prefix]
     )
 
+    def head_controller_spawner(context: LaunchContext):
+        """Spawn the head forward controller only when a head joint is enabled."""
+        v = context.perform_substitution(use_head_vertical).lower() in ("true", "1")
+        h = context.perform_substitution(use_head_horizontal).lower() in ("true", "1")
+        if not (v or h):
+            return []
+        namespace = namespace_from_context(context, arm_prefix)
+        controller_manager_ref = (
+            f"/{namespace}/controller_manager" if namespace else "/controller_manager"
+        )
+        return [Node(
+            package="controller_manager",
+            executable="spawner",
+            namespace=namespace,
+            arguments=["head_forward_position_controller",
+                       "-c", controller_manager_ref],
+        )]
+
+    head_controller_spawner_func = OpaqueFunction(function=head_controller_spawner)
+
     hand_controller_spawner = OpaqueFunction(
         function=lambda context: [Node(
             package="controller_manager",
@@ -405,6 +429,7 @@ def generate_launch_description():
         TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[joint_state_broadcaster_spawner]),
         TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[controller_spawner_func]),
         TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[hand_controller_spawner]),
+        TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[head_controller_spawner_func]),
     ]
 
     if camera_tf_node:
