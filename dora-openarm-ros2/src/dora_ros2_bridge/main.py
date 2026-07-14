@@ -15,12 +15,12 @@
 """Dora-to-ROS2 Bridge Node.
 
 This node acts as a state holder and message translator between the Dora dataflow
-and ROS 2 control interfaces. It subscribes to the right arm's joint position
-input from the Dora graph and forwards it, merged with a fixed left-arm pose,
-to the robot. The left arm is not driven by the Dora graph in this
-configuration — only the right arm/gripper are teleoperated. It also forwards
-the VR controller's A/B/X/Y button states as a sensor_msgs/Joy on the
-/vr_buttons topic.
+and ROS 2 control interfaces. It forwards the right arm's joint position input
+from the Dora graph to the robot, merged with the left arm's — if the
+dataflow wires a left_position input (bimanual yamls); otherwise the left arm
+holds a fixed pose, since only the right arm/gripper are teleoperated (the
+single-arm yaml). It also forwards the VR controller's A/B/X/Y button states
+as a sensor_msgs/Joy on the /vr_buttons topic.
 
 --mode sim (default): publishes a single merged sensor_msgs/JointState on
 /joint_command.
@@ -125,8 +125,11 @@ def _run(args: argparse.Namespace) -> None:
     EMPTY_F64 = np.array([], dtype=np.float64)
     EMPTY_F32 = np.array([], dtype=np.float32)
 
-    # Left arm is not teleoperated in this configuration: hold a fixed pose
-    # (all joints 0) and a closed/neutral gripper.
+    # Default left-arm target (all joints 0, neutral gripper) used until/unless
+    # a left_position event arrives. Yamls that don't wire left_position
+    # (single-arm teleop) leave the left arm parked here forever; bimanual
+    # yamls overwrite it in place as soon as the IK solver starts publishing
+    # position_left.
     LEFT_FIXED = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=np.float64)
 
     # buttons[0..3] = a, b, x, y — index into BUTTON_CACHE below.
@@ -269,9 +272,12 @@ def _run(args: argparse.Namespace) -> None:
     # --- 5. Dora Loop ---
     dora_node = dora.Node()
 
-    # Latest known [7 arm joints, 1 gripper] for the right side. The left side
-    # is not teleoperated, so it always targets LEFT_FIXED.
+    # Latest known [7 arm joints, 1 gripper] per side. right_position always
+    # drives publishing (see below); left_cache only updates in the
+    # background from left_position events and starts out — and stays,
+    # if left_position is never wired — at LEFT_FIXED.
     right_cache = np.zeros(8, dtype=np.float64)
+    left_cache = LEFT_FIXED.copy()
     button_cache = np.zeros(4, dtype=np.int32)
 
     for event in dora_node:
@@ -292,6 +298,12 @@ def _run(args: argparse.Namespace) -> None:
             p_buttons.publish(pa.array([msg]))
             continue
 
+        if eid == "left_position":
+            vals = value.to_numpy().astype(np.float64)
+            n = min(len(vals), 8)
+            left_cache[:n] = vals[:n]
+            continue
+
         if eid != "right_position":
             continue
 
@@ -301,7 +313,7 @@ def _run(args: argparse.Namespace) -> None:
 
         if args.mode == "sim":
             stamp = now_stamp()
-            msg = make_joint_command_msg(stamp, LEFT_FIXED, right_cache)
+            msg = make_joint_command_msg(stamp, left_cache, right_cache)
             p_joint_cmd.publish(pa.array([msg]))
         else:
             safe_r = get_safe_position(
@@ -313,7 +325,7 @@ def _run(args: argparse.Namespace) -> None:
             p_r_arm.publish(pa.array([make_joint_msg(NAMES_R_ARM, safe_r)]))
 
             safe_l = get_safe_position(
-                LEFT_FIXED[:7],
+                left_cache[:7],
                 internal_target_l,
                 physical_state["left"],
                 physical_state["left_ready"],

@@ -33,11 +33,13 @@ nodes:
   - id: ik
     build: pip install -e ../vendor/dora-openarm-kinematics
     path: dora-openarm-ik
-    args: "--mode right --xml ../../openarm_mujoco/v1/scene.xml --frame-right openarm_right_tcp --frame-type-right body --max-iters 10 --dt 0.1 --damping 0.1 --posture-cost 0.01 --lm-damping 0.01"
+    args: "--mode bimanual --xml ../../openarm_mujoco/v1/scene.xml --frame-right openarm_right_tcp --frame-type-right body --frame-left openarm_left_tcp --frame-type-left body --max-iters 10 --dt 0.1 --damping 0.1 --posture-cost 0.01 --lm-damping 0.01"
     inputs:
       tick: dora/timer/millis/2
       target_right: udp-receiver/pose_right
       trigger_right: udp-receiver/trigger_right
+      target_left: udp-receiver/pose_left
+      trigger_left: udp-receiver/trigger_left
     outputs:
       - position_left
       - position_right
@@ -48,8 +50,8 @@ nodes:
     args: "--mode real"
     inputs:
       right_position: ik/position_right
+      left_position: ik/position_left
       button_a: udp-receiver/button_a
       button_b: udp-receiver/button_b
       button_x: udp-receiver/button_x
       button_y: udp-receiver/button_y
-
