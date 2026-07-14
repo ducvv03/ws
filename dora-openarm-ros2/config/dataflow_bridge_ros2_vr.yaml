@@ -1,6 +1,6 @@
 nodes:
   - id: udp-receiver
-    build: pip install git+https://github.com/enactic/dora-openarm-vr
+    build: pip install -e ../vendor/dora-openarm-vr
     path: dora-openarm-quest-receiver
     args: "--host 0.0.0.0 --port 5006"
     inputs:
@@ -31,7 +31,7 @@ nodes:
   #     - status
 
   - id: ik
-    build: pip install git+https://github.com/enactic/dora-openarm-kinematics
+    build: pip install -e ../vendor/dora-openarm-kinematics
     path: dora-openarm-ik
     args: "--mode right --xml ../../openarm_mujoco/v1/scene.xml --frame-right openarm_right_tcp --frame-type-right body --max-iters 10 --dt 0.1 --damping 0.1 --posture-cost 0.01 --lm-damping 0.01"
     inputs:
