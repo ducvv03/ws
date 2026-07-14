@@ -2,7 +2,7 @@
 
 A [Dora](https://dora-rs.ai/) node that translates OpenArm Dora dataflow messages into [ROS 2](https://www.ros.org/) topics, enabling integration with the ROS 2 ecosystem.
 
-Joint commands from the Dora graph are merged into a single `sensor_msgs/JointState` and published on `/joint_command`. If you want to record a dataset, simply run `ros2 bag record` alongside this node to capture all topics.
+Joint commands from the Dora graph are forwarded to the robot in one of two modes, selected via `--mode {sim,real}` (default `sim`): `sim` merges them into a single `sensor_msgs/JointState` published on `/joint_command`; `real` publishes separate `trajectory_msgs/JointTrajectory` per arm, ramped toward the target and resynced from real controller feedback for hardware safety. If you want to record a dataset, simply run `ros2 bag record` alongside this node to capture all topics.
 
 ## Usage
 
@@ -38,7 +38,8 @@ nodes:
 
 | Topic | Type | Description |
 | --- | --- | --- |
-| `/joint_command` | `sensor_msgs/JointState` | Merged joint command: `openarm_left_joint1..7`, `openarm_right_joint1..7` (interleaved left/right), then `openarm_left_finger_joint1`, `openarm_right_finger_joint1`. Published whenever either side updates, once both sides have reported at least once. |
+| `/joint_command` (`--mode sim`, default) | `sensor_msgs/JointState` | Merged joint command: `openarm_left_joint1..7`, `openarm_right_joint1..7` (interleaved left/right), then `openarm_left_finger_joint1`, `openarm_right_finger_joint1`. Published on every `right_position` event. |
+| `/left_joint_trajectory_controller/joint_trajectory`, `/right_joint_trajectory_controller/joint_trajectory` (`--mode real`) | `trajectory_msgs/JointTrajectory` | Per-arm arm-only (no gripper) trajectory, one point, `time_from_start` zero (execute immediately). Target is ramped toward at 0.02 rad/cycle and resynced from that controller's `.../controller_state` feedback if it has drifted more than 0.1 rad from what was last commanded. |
 | `/vr_buttons` | `sensor_msgs/Joy` | VR controller buttons as `buttons: int32[4]` = `[a, b, x, y]` (0/1), `axes` unused. Published whenever any button input event arrives, holding the latest known state of the other three. |
 
 ## Data Collection
