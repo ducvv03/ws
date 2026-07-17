@@ -278,6 +278,23 @@ def _run(args: argparse.Namespace) -> None:
             node.send_output(
                 "joystick_y", pa.array([float(msg["lsy"])], type=pa.float32()), ts
             )
+        # Thumbstick axes (-1..1) per controller, used to drive each hand's thumb.
+        if "lsx" in msg:
+            node.send_output(
+                "joystick_x_left", pa.array([float(msg["lsx"])], type=pa.float32()), ts
+            )
+        if "lsy" in msg:
+            node.send_output(
+                "joystick_y_left", pa.array([float(msg["lsy"])], type=pa.float32()), ts
+            )
+        if "rsx" in msg:
+            node.send_output(
+                "joystick_x_right", pa.array([float(msg["rsx"])], type=pa.float32()), ts
+            )
+        if "rsy" in msg:
+            node.send_output(
+                "joystick_y_right", pa.array([float(msg["rsy"])], type=pa.float32()), ts
+            )
         if "a" in msg:
             node.send_output(
                 "button_a", pa.array([bool(msg["a"])], type=pa.bool_()), ts

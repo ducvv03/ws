@@ -149,6 +149,76 @@ def _run(args: argparse.Namespace) -> None:
             "buttons": buttons,
         }
 
+    # --- Revo2 hand (gripper) setup -------------------------------------------
+    # The VR trigger drives the 4 non-thumb fingers of each Revo2 hand; the thumb
+    # (indices 0,1) holds a fixed mock pose until a real thumb input is wired.
+    # Published as trajectory_msgs/JointTrajectory to each hand's
+    # <side>_revo2_hand_controller, in both --mode sim and --mode real.
+    HAND_STAMP_ZERO = {"sec": np.int32(0), "nanosec": np.uint32(0)}
+    p_l_hand = node.create_publisher(
+        node.create_topic(
+            "/left_revo2_hand_controller/joint_trajectory",
+            "trajectory_msgs/JointTrajectory",
+            qos_arm,
+        )
+    )
+    p_r_hand = node.create_publisher(
+        node.create_topic(
+            "/right_revo2_hand_controller/joint_trajectory",
+            "trajectory_msgs/JointTrajectory",
+            qos_arm,
+        )
+    )
+
+    HAND_FINGERS = ["thumb_metacarpal", "thumb_proximal", "index_proximal",
+                    "middle_proximal", "ring_proximal", "pinky_proximal"]
+    NAMES_L_HAND = [f"left_{f}_joint" for f in HAND_FINGERS]
+    NAMES_R_HAND = [f"right_{f}_joint" for f in HAND_FINGERS]
+
+    # Finger closed limits (rad), same order as HAND_FINGERS (revo2 URDF upper
+    # limits); every finger opens at 0.0.
+    HAND_CLOSED = np.array([1.57, 1.03, 1.41, 1.41, 1.41, 1.41], dtype=np.float64)
+    # Mock thumb pose (indices 0,1); the trigger only drives the fingers [2:].
+    MOCK_THUMB = np.array([0.0, 0.0], dtype=np.float64)
+
+    # Persistent full 6-joint target per hand: the trigger updates only the
+    # 4-finger slice [2:], the thumb slice keeps MOCK_THUMB, and we always
+    # publish all 6 so the goal is never partial.
+    hand_target_l = np.zeros(6, dtype=np.float64)
+    hand_target_r = np.zeros(6, dtype=np.float64)
+    hand_target_l[0:2] = MOCK_THUMB
+    hand_target_r[0:2] = MOCK_THUMB
+
+    # The trigger reports roughly the SQUARE of its lever angle; undo it with a
+    # power curve so grip tracks the pull (input clipped to [0, 1] upstream).
+    GRIP_LINEARIZE = True
+
+    def linearize_grip(g: float) -> float:
+        """Undo the trigger's squared response so grip tracks the lever angle."""
+        return g ** 0.5
+
+    # Latest grip command (0..1) per hand; the trigger stream (~500 Hz) updates
+    # it and each event ramps hand_target toward it by at most HAND_MAX_STEP.
+    desired_grip_l = 0.0
+    desired_grip_r = 0.0
+    HAND_MAX_STEP = 0.03
+
+    def make_hand_msg(names: list, positions: list) -> dict:
+        """Build a single-point JointTrajectory message for the Revo2 hand."""
+        return {
+            "header": {"stamp": HAND_STAMP_ZERO, "frame_id": ""},
+            "joint_names": names,
+            "points": [
+                {
+                    "positions": positions,
+                    "velocities": EMPTY_F64,
+                    "accelerations": EMPTY_F64,
+                    "effort": EMPTY_F64,
+                    "time_from_start": {"sec": np.int32(0), "nanosec": np.uint32(0)},
+                }
+            ],
+        }
+
     if args.mode == "sim":
         p_joint_cmd = node.create_publisher(
             node.create_topic(
@@ -279,6 +349,9 @@ def _run(args: argparse.Namespace) -> None:
     right_cache = np.zeros(8, dtype=np.float64)
     left_cache = LEFT_FIXED.copy()
     button_cache = np.zeros(4, dtype=np.int32)
+    # Latest thumbstick axes [x, y] per controller, driving each hand's thumb.
+    stick_l = np.zeros(2, dtype=np.float64)
+    stick_r = np.zeros(2, dtype=np.float64)
 
     for event in dora_node:
         if event["type"] != "INPUT":
@@ -296,6 +369,47 @@ def _run(args: argparse.Namespace) -> None:
             stamp = now_stamp()
             msg = make_joy_msg(stamp, button_cache)
             p_buttons.publish(pa.array([msg]))
+            continue
+
+        if eid in ("trigger_left", "trigger_right"):
+            # High-rate grip stream: linearize the trigger, ramp each hand's 4
+            # non-thumb fingers toward grip * closed-limit by at most
+            # HAND_MAX_STEP, then publish the full 6-joint hand (thumb keeps its
+            # mock pose). Both hands are (re)published on every trigger event.
+            raw = float(np.clip(value.to_numpy()[0], 0.0, 1.0))
+            g = linearize_grip(raw) if GRIP_LINEARIZE else raw
+            if eid == "trigger_left":
+                desired_grip_l = g
+            else:
+                desired_grip_r = g
+
+            des_l = desired_grip_l * HAND_CLOSED[2:]
+            hand_target_l[2:] += np.clip(des_l - hand_target_l[2:], -HAND_MAX_STEP, HAND_MAX_STEP)
+            p_l_hand.publish(pa.array([make_hand_msg(NAMES_L_HAND, hand_target_l.tolist())]))
+
+            des_r = desired_grip_r * HAND_CLOSED[2:]
+            hand_target_r[2:] += np.clip(des_r - hand_target_r[2:], -HAND_MAX_STEP, HAND_MAX_STEP)
+            p_r_hand.publish(pa.array([make_hand_msg(NAMES_R_HAND, hand_target_r.tolist())]))
+            continue
+
+        if eid in ("joystick_x_left", "joystick_y_left"):
+            # Left thumbstick drives the LEFT thumb: x -> thumb_metacarpal (idx 0),
+            # y -> thumb_proximal (idx 1). Axis mapped [0,1] * closed-limit (rest =
+            # open); use (axis + 1) / 2 instead for full-range with center = mid.
+            axis = float(np.clip(value.to_numpy()[0], -1.0, 1.0))
+            stick_l[0 if eid == "joystick_x_left" else 1] = axis
+            des = np.clip(stick_l, 0.0, 1.0) * HAND_CLOSED[0:2]
+            hand_target_l[0:2] += np.clip(des - hand_target_l[0:2], -HAND_MAX_STEP, HAND_MAX_STEP)
+            p_l_hand.publish(pa.array([make_hand_msg(NAMES_L_HAND, hand_target_l.tolist())]))
+            continue
+
+        if eid in ("joystick_x_right", "joystick_y_right"):
+            # Right thumbstick drives the RIGHT thumb, same mapping as the left.
+            axis = float(np.clip(value.to_numpy()[0], -1.0, 1.0))
+            stick_r[0 if eid == "joystick_x_right" else 1] = axis
+            des = np.clip(stick_r, 0.0, 1.0) * HAND_CLOSED[0:2]
+            hand_target_r[0:2] += np.clip(des - hand_target_r[0:2], -HAND_MAX_STEP, HAND_MAX_STEP)
+            p_r_hand.publish(pa.array([make_hand_msg(NAMES_R_HAND, hand_target_r.tolist())]))
             continue
 
         if eid == "left_position":
@@ -331,6 +445,7 @@ def _run(args: argparse.Namespace) -> None:
                 physical_state["left_ready"],
             )
             p_l_arm.publish(pa.array([make_joint_msg(NAMES_L_ARM, safe_l)]))
+            #printf(pa.array([make_joint_msg(NAMES_L_ARM, safe_l)]))
 
 
 if __name__ == "__main__":
