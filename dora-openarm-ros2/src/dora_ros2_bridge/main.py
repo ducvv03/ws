@@ -275,29 +275,51 @@ def _run(args: argparse.Namespace) -> None:
             )
         )
 
+        # sim-only: distal phalanx joints have no independent target (the
+        # trigger/joystick streams only drive metacarpal + proximal), so each
+        # mirrors its same-finger proximal joint's value (hand_target[1:6]:
+        # thumb_proximal, index_proximal, middle_proximal, ring_proximal,
+        # pinky_proximal) — a simple stand-in for the real driver's mimic
+        # joints, which --mode real doesn't need since it never targets the
+        # sim-only *_distal_joint names on the hand controller topics.
+        DISTAL_FINGERS = ["thumb_distal", "index_distal", "middle_distal",
+                           "ring_distal", "pinky_distal"]
+        NAMES_L_HAND_DISTAL = [f"left_{f}_joint" for f in DISTAL_FINGERS]
+        NAMES_R_HAND_DISTAL = [f"right_{f}_joint" for f in DISTAL_FINGERS]
+
         # Merged joint order: left/right arm joints interleaved, then each
-        # side's primary gripper joint. openarm_left_finger_joint2,
-        # openarm_left_hand, openarm_right_finger_joint2, openarm_right_hand,
-        # openarm_left_ee_tcp_joint, and openarm_right_ee_tcp_joint are
-        # intentionally omitted — the Dora right_position input only carries
-        # one gripper scalar.
+        # side's Revo2 hand joints (left hand, then right hand) — 6 driven
+        # joints followed by the 5 mirrored distal joints. The
+        # openarm_*_ee_tcp_joint names are intentionally omitted — no data
+        # for those is published anywhere.
         JOINT_NAMES = []
         for i in range(7):
             JOINT_NAMES.append(f"openarm_left_joint{i + 1}")
             JOINT_NAMES.append(f"openarm_right_joint{i + 1}")
-        JOINT_NAMES.append("openarm_left_finger_joint1")
-        JOINT_NAMES.append("openarm_right_finger_joint1")
+        JOINT_NAMES.extend(NAMES_L_HAND)
+        JOINT_NAMES.extend(NAMES_L_HAND_DISTAL)
+        JOINT_NAMES.extend(NAMES_R_HAND)
+        JOINT_NAMES.extend(NAMES_R_HAND_DISTAL)
 
         def make_joint_command_msg(
             stamp: dict, left: np.ndarray, right: np.ndarray
         ) -> dict:
-            """Build a merged JointState message from the latest left/right arrays."""
+            """Build a merged JointState message from the latest left/right arm arrays.
+
+            The gripper portion comes from hand_target_l/hand_target_r (the
+            current Revo2 hand targets, updated by trigger/joystick events)
+            rather than left[7]/right[7] — the single scalar gripper value
+            carried in the Dora position input isn't used here. Each hand's
+            distal joints mirror hand_target[1:6] (its own proximal values).
+            """
             positions = []
             for i in range(7):
                 positions.append(left[i])
                 positions.append(right[i])
-            positions.append(left[7])
-            positions.append(right[7])
+            positions.extend(hand_target_l.tolist())
+            positions.extend(hand_target_l[1:6].tolist())
+            positions.extend(hand_target_r.tolist())
+            positions.extend(hand_target_r[1:6].tolist())
 
             return {
                 "header": {"stamp": stamp, "frame_id": ""},
@@ -421,8 +443,10 @@ def _run(args: argparse.Namespace) -> None:
         if eid in ("trigger_left", "trigger_right"):
             # High-rate grip stream: linearize the trigger, ramp each hand's 4
             # non-thumb fingers toward grip * closed-limit by at most
-            # HAND_MAX_STEP, then publish the full 6-joint hand (thumb keeps its
-            # mock pose). Both hands are (re)published on every trigger event.
+            # HAND_MAX_STEP. In --mode real both hands are (re)published on
+            # every trigger event to their own controller topic; in --mode
+            # sim hand_target is instead merged into /joint_command the next
+            # time right_position publishes, so no separate publish here.
             raw = float(np.clip(value.to_numpy()[0], 0.0, 1.0))
             g = linearize_grip(raw) if GRIP_LINEARIZE else raw
             if eid == "trigger_left":
@@ -432,11 +456,11 @@ def _run(args: argparse.Namespace) -> None:
 
             des_l = desired_grip_l * HAND_CLOSED[2:]
             hand_target_l[2:] += np.clip(des_l - hand_target_l[2:], -HAND_MAX_STEP, HAND_MAX_STEP)
-            p_l_hand.publish(pa.array([make_hand_msg(NAMES_L_HAND, hand_target_l.tolist())]))
-
             des_r = desired_grip_r * HAND_CLOSED[2:]
             hand_target_r[2:] += np.clip(des_r - hand_target_r[2:], -HAND_MAX_STEP, HAND_MAX_STEP)
-            p_r_hand.publish(pa.array([make_hand_msg(NAMES_R_HAND, hand_target_r.tolist())]))
+            if args.mode == "real":
+                p_l_hand.publish(pa.array([make_hand_msg(NAMES_L_HAND, hand_target_l.tolist())]))
+                p_r_hand.publish(pa.array([make_hand_msg(NAMES_R_HAND, hand_target_r.tolist())]))
             continue
 
         if eid in ("joystick_x_left", "joystick_y_left"):
@@ -447,7 +471,8 @@ def _run(args: argparse.Namespace) -> None:
             stick_l[0 if eid == "joystick_x_left" else 1] = axis
             des = np.clip(stick_l, 0.0, 1.0) * HAND_CLOSED[0:2]
             hand_target_l[0:2] += np.clip(des - hand_target_l[0:2], -HAND_MAX_STEP, HAND_MAX_STEP)
-            p_l_hand.publish(pa.array([make_hand_msg(NAMES_L_HAND, hand_target_l.tolist())]))
+            if args.mode == "real":
+                p_l_hand.publish(pa.array([make_hand_msg(NAMES_L_HAND, hand_target_l.tolist())]))
             continue
 
         if eid in ("joystick_x_right", "joystick_y_right"):
@@ -456,7 +481,8 @@ def _run(args: argparse.Namespace) -> None:
             stick_r[0 if eid == "joystick_x_right" else 1] = axis
             des = np.clip(stick_r, 0.0, 1.0) * HAND_CLOSED[0:2]
             hand_target_r[0:2] += np.clip(des - hand_target_r[0:2], -HAND_MAX_STEP, HAND_MAX_STEP)
-            p_r_hand.publish(pa.array([make_hand_msg(NAMES_R_HAND, hand_target_r.tolist())]))
+            if args.mode == "real":
+                p_r_hand.publish(pa.array([make_hand_msg(NAMES_R_HAND, hand_target_r.tolist())]))
             continue
 
         if eid == "left_position":
