@@ -44,6 +44,17 @@ nodes:
       - position_left
       - position_right
 
+  - id: fk
+    build: pip install -e ../vendor/dora-openarm-kinematics
+    path: dora-openarm-fk
+    args: "--mode bimanual --xml ../../openarm_mujoco/v1/scene.xml --frame-right openarm_right_tcp --frame-type-right body --frame-left openarm_left_tcp --frame-type-left body"
+    inputs:
+      position_right: ik/position_right
+      position_left: ik/position_left
+    outputs:
+      - pose_right
+      - pose_left
+
   - id: dora-to-ros2
     build: pip install -e ..
     path: openarm-dora-ros2
@@ -51,6 +62,8 @@ nodes:
     inputs:
       right_position: ik/position_right
       left_position: ik/position_left
+      ee_pose_right: fk/pose_right
+      ee_pose_left: fk/pose_left
       button_a: udp-receiver/button_a
       button_b: udp-receiver/button_b
       button_x: udp-receiver/button_x

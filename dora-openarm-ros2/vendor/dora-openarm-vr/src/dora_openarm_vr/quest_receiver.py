@@ -185,6 +185,8 @@ def _run(args: argparse.Namespace) -> None:
     prev_v_overall = VALID_OK
     prev_right_engaged = False
     prev_left_engaged = False
+    last_sent_pose_right: np.ndarray | None = None
+    last_sent_pose_left: np.ndarray | None = None
 
     node = dora.Node()
     node.send_output("status", pa.array(["ready"]))
@@ -211,13 +213,22 @@ def _run(args: argparse.Namespace) -> None:
 
         pose_right_raw, pose_left_raw = processor.process(msg)
 
-        # The dead-man grip only gates *publishing* below — the smoothers keep
-        # consuming raw pose every tick regardless, so while the grip is
-        # released and the controller sits still (e.g. placed on a table),
-        # the filter fully converges to that resting pose. Without a reset on
-        # re-engagement, the first pose(s) published after re-gripping would
-        # still be anchored near that stale resting pose instead of passing
-        # through the controller's current (raw) position, producing a jump.
+        # The dead-man grip freezes the *target* below rather than gating
+        # publishing entirely — pose_right/pose_left are sent every tick once
+        # a first grip has been seen, so downstream (ik → dora-to-ros2 →
+        # ROS2 command topics) always sees a continuous command stream for
+        # data recording, even while the grip is released. Released ticks
+        # simply re-send the last pose captured while engaged instead of the
+        # live (possibly still-moving) controller pose, so the arm holds
+        # still rather than following the controller when you let go.
+        #
+        # The smoothers keep consuming raw pose every tick regardless of
+        # grip, so while released and the controller sits still (e.g. placed
+        # on a table), the filter fully converges to that resting pose.
+        # Without a reset on re-engagement, the first pose(s) sent after
+        # re-gripping would still be anchored near that stale resting pose
+        # instead of passing through the controller's current (raw)
+        # position, producing a jump.
         right_grip = float(msg.get("rg", 0.0))
         left_grip = float(msg.get("lg", 0.0))
         right_engaged = right_grip > 0.5
@@ -252,17 +263,21 @@ def _run(args: argparse.Namespace) -> None:
 
         ts = {"timestamp": time.time_ns()}
 
-        if pose_right is not None and right_engaged:
+        if right_engaged and pose_right is not None:
+            last_sent_pose_right = pose_right
+        if last_sent_pose_right is not None:
             node.send_output(
                 "pose_right",
-                pa.array(pose_right, type=pa.float32()),
+                pa.array(last_sent_pose_right, type=pa.float32()),
                 ts,
             )
 
-        if pose_left is not None and left_engaged:
+        if left_engaged and pose_left is not None:
+            last_sent_pose_left = pose_left
+        if last_sent_pose_left is not None:
             node.send_output(
                 "pose_left",
-                pa.array(pose_left, type=pa.float32()),
+                pa.array(last_sent_pose_left, type=pa.float32()),
                 ts,
             )
 

@@ -20,7 +20,10 @@ from the Dora graph to the robot, merged with the left arm's — if the
 dataflow wires a left_position input (bimanual yamls); otherwise the left arm
 holds a fixed pose, since only the right arm/gripper are teleoperated (the
 single-arm yaml). It also forwards the VR controller's A/B/X/Y button states
-as a sensor_msgs/Joy on the /vr_buttons topic.
+as a sensor_msgs/Joy on the /vr_buttons topic. If the dataflow wires an
+fk node's pose_right/pose_left output (as ee_pose_right/ee_pose_left), the
+end-effector translation/orientation is also republished as
+geometry_msgs/PoseStamped on /right_ee_pose and /left_ee_pose.
 
 --mode sim (default): publishes a single merged sensor_msgs/JointState on
 /joint_command.
@@ -120,6 +123,23 @@ def _run(args: argparse.Namespace) -> None:
             qos_buttons,
         )
     )
+    # Best-effort for the same reason as buttons: ee_pose events arrive at
+    # whatever rate the ik/fk nodes solve at, which can be fast, and there's
+    # no guarantee anything is subscribed.
+    p_ee_pose_right = node.create_publisher(
+        node.create_topic(
+            "/right_ee_pose",
+            "geometry_msgs/PoseStamped",
+            qos_buttons,
+        )
+    )
+    p_ee_pose_left = node.create_publisher(
+        node.create_topic(
+            "/left_ee_pose",
+            "geometry_msgs/PoseStamped",
+            qos_buttons,
+        )
+    )
 
     # --- 3. Pre-defined Constants ---
     EMPTY_F64 = np.array([], dtype=np.float64)
@@ -177,7 +197,7 @@ def _run(args: argparse.Namespace) -> None:
 
     # Finger closed limits (rad), same order as HAND_FINGERS (revo2 URDF upper
     # limits); every finger opens at 0.0.
-    HAND_CLOSED = np.array([1.57, 1.03, 1.41, 1.41, 1.41, 1.41], dtype=np.float64)
+    HAND_CLOSED = np.array([1.57, 1.03, 0.4, 0.5, 0.6, 0.7 ], dtype=np.float64)
     # Mock thumb pose (indices 0,1); the trigger only drives the fingers [2:].
     MOCK_THUMB = np.array([0.0, 0.0], dtype=np.float64)
 
@@ -216,7 +236,34 @@ def _run(args: argparse.Namespace) -> None:
                     "effort": EMPTY_F64,
                     "time_from_start": {"sec": np.int32(0), "nanosec": np.uint32(0)},
                 }
-            ],
+            ],}
+    def extract_pose(value: pa.Array) -> np.ndarray:
+        """Read an fk-node pose event: a {"pose": [...]} struct, or a flat array."""
+        if pa.types.is_struct(value.type):
+            value = value.field("pose")[0].values
+        return np.array(value, dtype=np.float32)
+
+    def make_ee_pose_msg(stamp: dict, pose: np.ndarray) -> dict:
+        """Build a geometry_msgs/PoseStamped from an FK [px,py,pz,qw,qx,qy,qz,...] pose.
+
+        Only the first 7 values are used; a trailing gripper value (as the fk
+        node emits) is ignored here — that's already published separately.
+        """
+        return {
+            "header": {"stamp": stamp, "frame_id": ""},
+            "pose": {
+                "position": {
+                    "x": float(pose[0]),
+                    "y": float(pose[1]),
+                    "z": float(pose[2]),
+                },
+                "orientation": {
+                    "x": float(pose[4]),
+                    "y": float(pose[5]),
+                    "z": float(pose[6]),
+                    "w": float(pose[3]),
+                },
+            },
         }
 
     if args.mode == "sim":
@@ -416,6 +463,16 @@ def _run(args: argparse.Namespace) -> None:
             vals = value.to_numpy().astype(np.float64)
             n = min(len(vals), 8)
             left_cache[:n] = vals[:n]
+            continue
+
+        if eid == "ee_pose_right":
+            pose = extract_pose(value)
+            p_ee_pose_right.publish(pa.array([make_ee_pose_msg(now_stamp(), pose)]))
+            continue
+
+        if eid == "ee_pose_left":
+            pose = extract_pose(value)
+            p_ee_pose_left.publish(pa.array([make_ee_pose_msg(now_stamp(), pose)]))
             continue
 
         if eid != "right_position":
