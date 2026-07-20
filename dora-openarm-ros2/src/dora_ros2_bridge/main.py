@@ -25,6 +25,21 @@ fk node's pose_right/pose_left output (as ee_pose_right/ee_pose_left), the
 end-effector translation/orientation is also republished as
 geometry_msgs/PoseStamped on /right_ee_pose and /left_ee_pose.
 
+All ROS2 publishing goes through a real rclpy node (see DoraRos2BridgeNode)
+rather than Dora's own `dora.Ros2Context` bridge — the latter is built on the
+Rust `ros2-client` crate, which has a documented, upstream-acknowledged issue
+about its nodes/publishers not being reliably discoverable by a standard
+rclcpp/rclpy ROS2 graph (see the `dora` Python package's own Ros2Node
+docstring warning, and https://github.com/jhelovuo/ros2-client/issues/4).
+Concretely: on real hardware, `dora.Ros2Context`-based publishers logged
+"published" on every cycle, but neither `ros2 topic echo` nor the real
+`joint_trajectory_controller` ever received anything, with ROS_DOMAIN_ID and
+RMW confirmed matching on both ends — while rclpy (used here for the
+feedback subscription) worked immediately. Only the Dora dataflow event loop
+itself (`dora.Node()`, receiving right_position/trigger_*/button_*/etc. from
+the ik/udp-receiver nodes) still uses the `dora` package — that's a separate,
+unaffected mechanism from the ROS2 bridge.
+
 --mode sim (default): publishes a single merged sensor_msgs/JointState on
 /joint_command.
 
@@ -47,8 +62,13 @@ import dora
 import numpy as np
 import pyarrow as pa
 import rclpy
+from builtin_interfaces.msg import Duration, Time
 from control_msgs.msg import JointTrajectoryControllerState
+from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node as RclpyNode
+from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
+from sensor_msgs.msg import Joy, JointState
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 
 def _log(msg: str) -> None:
@@ -56,52 +76,113 @@ def _log(msg: str) -> None:
     print(f"[dora-to-ros2] {msg}", flush=True)
 
 
-class RobotStateSubscriber(RclpyNode):
-    """Tracks real physical joint feedback, used by --mode real's safety ramp."""
+def _stamp_now() -> Time:
+    """Build a builtin_interfaces/Time from the current wall-clock time."""
+    t = time.time()
+    return Time(sec=int(t), nanosec=int((t % 1.0) * 1e9))
 
-    def __init__(self, physical_state: dict) -> None:
-        """Subscribe to both arms' controller_state feedback topics."""
-        super().__init__("dora_bridge_state_subscriber")
-        self._physical_state = physical_state
-        self.create_subscription(
-            JointTrajectoryControllerState,
-            "/left_joint_trajectory_controller/controller_state",
-            self._left_cb,
-            10,
+
+_STAMP_ZERO = Time(sec=0, nanosec=0)
+_DURATION_ZERO = Duration(sec=0, nanosec=0)
+
+
+class DoraRos2BridgeNode(RclpyNode):
+    """Owns every ROS2 publisher this bridge uses, plus feedback subscriptions.
+
+    (--mode real only) the physical joint-feedback subscriptions used for the
+    safety ramp. A single real rclpy node, spun in a background thread, backs
+    both directions — publishing is called from the main thread (the Dora
+    event loop below), which is safe: rclpy publishers/subscriptions don't
+    require the calling thread to be the one spinning the executor.
+    """
+
+    def __init__(self, mode: str) -> None:
+        """Create all publishers for `mode`, plus feedback subscriptions if real."""
+        super().__init__("dora_to_ros2")
+        self._mode = mode
+
+        qos_arm = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE, history=HistoryPolicy.KEEP_LAST, depth=10
         )
-        self.create_subscription(
-            JointTrajectoryControllerState,
-            "/right_joint_trajectory_controller/controller_state",
-            self._right_cb,
-            10,
+        # Best-effort: the VR headset re-sends button/pose state on every tick
+        # (up to ~500 Hz) whether or not it changed, and there's no guarantee
+        # anything is subscribed. Reliable QoS made the writer block trying to
+        # redeliver that firehose whenever nothing was keeping up, eventually
+        # erroring out with a publish timeout.
+        qos_best_effort = QoSProfile(
+            reliability=ReliabilityPolicy.BEST_EFFORT, history=HistoryPolicy.KEEP_LAST, depth=10
         )
+
+        self.p_buttons = self.create_publisher(Joy, "/vr_buttons", qos_best_effort)
+        self.p_ee_pose_right = self.create_publisher(PoseStamped, "/right_ee_pose", qos_best_effort)
+        self.p_ee_pose_left = self.create_publisher(PoseStamped, "/left_ee_pose", qos_best_effort)
+        _log("common publishers ready: /vr_buttons, /right_ee_pose, /left_ee_pose")
+
+        # Revo2 hand (gripper) command publishers, used in both --mode sim and
+        # --mode real (see main loop for which mode actually calls .publish on
+        # these vs. merging into /joint_command).
+        self.p_l_hand = self.create_publisher(
+            JointTrajectory, "/left_revo2_hand_controller/joint_trajectory", qos_arm
+        )
+        self.p_r_hand = self.create_publisher(
+            JointTrajectory, "/right_revo2_hand_controller/joint_trajectory", qos_arm
+        )
+        _log("hand publishers ready: /left_revo2_hand_controller/joint_trajectory, "
+             "/right_revo2_hand_controller/joint_trajectory")
+
+        self.physical_state = None
+        if mode == "sim":
+            self.p_joint_cmd = self.create_publisher(JointState, "/joint_command", qos_arm)
+            _log("mode=sim: publisher ready: /joint_command")
+        else:
+            self.p_l_arm = self.create_publisher(
+                JointTrajectory, "/left_joint_trajectory_controller/joint_trajectory", qos_arm
+            )
+            self.p_r_arm = self.create_publisher(
+                JointTrajectory, "/right_joint_trajectory_controller/joint_trajectory", qos_arm
+            )
+            _log("mode=real: publishers ready: /left_joint_trajectory_controller/joint_trajectory, "
+                 "/right_joint_trajectory_controller/joint_trajectory")
+
+            self.physical_state = {
+                "left": np.zeros(7, dtype=np.float64),
+                "right": np.zeros(7, dtype=np.float64),
+                "left_ready": False,
+                "right_ready": False,
+            }
+            self.create_subscription(
+                JointTrajectoryControllerState,
+                "/left_joint_trajectory_controller/controller_state",
+                self._left_cb,
+                10,
+            )
+            self.create_subscription(
+                JointTrajectoryControllerState,
+                "/right_joint_trajectory_controller/controller_state",
+                self._right_cb,
+                10,
+            )
 
     def _left_cb(self, msg: JointTrajectoryControllerState) -> None:
-        if not self._physical_state["left_ready"]:
+        if not self.physical_state["left_ready"]:
             _log("first LEFT controller_state feedback received "
                  "(/left_joint_trajectory_controller/controller_state)")
-        self._physical_state["left"][:] = msg.feedback.positions[:7]
-        self._physical_state["left_ready"] = True
+        self.physical_state["left"][:] = msg.feedback.positions[:7]
+        self.physical_state["left_ready"] = True
 
     def _right_cb(self, msg: JointTrajectoryControllerState) -> None:
-        if not self._physical_state["right_ready"]:
+        if not self.physical_state["right_ready"]:
             _log("first RIGHT controller_state feedback received "
                  "(/right_joint_trajectory_controller/controller_state)")
-        self._physical_state["right"][:] = msg.feedback.positions[:7]
-        self._physical_state["right_ready"] = True
+        self.physical_state["right"][:] = msg.feedback.positions[:7]
+        self.physical_state["right_ready"] = True
 
 
-def _spin_robot_state_subscriber(physical_state: dict) -> None:
+def _spin_ros_node(node: DoraRos2BridgeNode) -> None:
     try:
-        rclpy.init()
-        node = RobotStateSubscriber(physical_state)
-        _log("RobotStateSubscriber thread: rclpy node initialized, spinning "
-             "(subscribed to both arms' .../controller_state)")
         rclpy.spin(node)
-        node.destroy_node()
-        rclpy.shutdown()
     except Exception:
-        _log("FATAL: RobotStateSubscriber thread crashed")
+        _log("FATAL: ROS2 spin thread crashed")
         traceback.print_exc()
         raise
 
@@ -125,53 +206,18 @@ def main() -> None:
 def _run(args: argparse.Namespace) -> None:
     # --- 1. ROS 2 Setup ---
     try:
-        context = dora.Ros2Context()
-        options = dora.Ros2NodeOptions(rosout=True)
-        node = context.new_node("dora_to_ros2", "/openarm", options)
+        rclpy.init()
+        ros_node = DoraRos2BridgeNode(args.mode)
     except Exception:
-        _log("FATAL: failed to create dora Ros2Context/node")
+        _log("FATAL: failed to create rclpy node")
         traceback.print_exc()
         raise
-    _log("ROS2 context/node created (dora_to_ros2 in /openarm namespace)")
+    _log("ROS2 node created (dora_to_ros2)")
 
-    qos_arm = dora.Ros2QosPolicies(reliable=True)
-    # Best-effort: the VR headset re-sends button state on every tick (up to
-    # ~500 Hz) whether or not it changed. Reliable QoS made the writer block
-    # trying to redeliver that firehose to /vr_buttons whenever nothing was
-    # subscribed/keeping up, eventually erroring out with a publish timeout.
-    qos_buttons = dora.Ros2QosPolicies(reliable=False)
+    threading.Thread(target=_spin_ros_node, args=(ros_node,), daemon=True).start()
+    _log("ROS2 spin thread started")
 
-    # --- 2. Define Publishers ---
-    p_buttons = node.create_publisher(
-        node.create_topic(
-            "/vr_buttons",
-            "sensor_msgs/Joy",
-            qos_buttons,
-        )
-    )
-    # Best-effort for the same reason as buttons: ee_pose events arrive at
-    # whatever rate the ik/fk nodes solve at, which can be fast, and there's
-    # no guarantee anything is subscribed.
-    p_ee_pose_right = node.create_publisher(
-        node.create_topic(
-            "/right_ee_pose",
-            "geometry_msgs/PoseStamped",
-            qos_buttons,
-        )
-    )
-    p_ee_pose_left = node.create_publisher(
-        node.create_topic(
-            "/left_ee_pose",
-            "geometry_msgs/PoseStamped",
-            qos_buttons,
-        )
-    )
-    _log("common publishers ready: /vr_buttons, /right_ee_pose, /left_ee_pose")
-
-    # --- 3. Pre-defined Constants ---
-    EMPTY_F64 = np.array([], dtype=np.float64)
-    EMPTY_F32 = np.array([], dtype=np.float32)
-
+    # --- 2. Pre-defined Constants ---
     # Default left-arm target (all joints 0, neutral gripper) used until/unless
     # a left_position event arrives. Yamls that don't wire left_position
     # (single-arm teleop) leave the left arm parked here forever; bimanual
@@ -182,43 +228,21 @@ def _run(args: argparse.Namespace) -> None:
     # buttons[0..3] = a, b, x, y — index into BUTTON_CACHE below.
     BUTTON_INDEX = {"button_a": 0, "button_b": 1, "button_x": 2, "button_y": 3}
 
-    # --- 4. Helpers ---
-    def now_stamp() -> dict:
-        """Return the current time as a ROS2 stamp dict."""
-        t = time.time()
-        return {"sec": np.int32(int(t)), "nanosec": np.uint32(int((t % 1.0) * 1e9))}
-
-    def make_joy_msg(stamp: dict, buttons: np.ndarray) -> dict:
+    # --- 3. Helpers ---
+    def make_joy_msg(stamp: Time, buttons: np.ndarray) -> Joy:
         """Build a sensor_msgs/Joy message from the latest button states."""
-        return {
-            "header": {"stamp": stamp, "frame_id": ""},
-            "axes": EMPTY_F32,
-            "buttons": buttons,
-        }
+        msg = Joy()
+        msg.header.stamp = stamp
+        msg.header.frame_id = ""
+        msg.axes = []
+        msg.buttons = [int(b) for b in buttons]
+        return msg
 
     # --- Revo2 hand (gripper) setup -------------------------------------------
     # The VR trigger drives the 4 non-thumb fingers of each Revo2 hand; the thumb
     # (indices 0,1) holds a fixed mock pose until a real thumb input is wired.
     # Published as trajectory_msgs/JointTrajectory to each hand's
     # <side>_revo2_hand_controller, in both --mode sim and --mode real.
-    HAND_STAMP_ZERO = {"sec": np.int32(0), "nanosec": np.uint32(0)}
-    p_l_hand = node.create_publisher(
-        node.create_topic(
-            "/left_revo2_hand_controller/joint_trajectory",
-            "trajectory_msgs/JointTrajectory",
-            qos_arm,
-        )
-    )
-    p_r_hand = node.create_publisher(
-        node.create_topic(
-            "/right_revo2_hand_controller/joint_trajectory",
-            "trajectory_msgs/JointTrajectory",
-            qos_arm,
-        )
-    )
-    _log("hand publishers ready: /left_revo2_hand_controller/joint_trajectory, "
-         "/right_revo2_hand_controller/joint_trajectory")
-
     HAND_FINGERS = ["thumb_metacarpal", "thumb_proximal", "index_proximal",
                     "middle_proximal", "ring_proximal", "pinky_proximal"]
     NAMES_L_HAND = [f"left_{f}_joint" for f in HAND_FINGERS]
@@ -252,59 +276,46 @@ def _run(args: argparse.Namespace) -> None:
     desired_grip_r = 0.0
     HAND_MAX_STEP = 0.03
 
-    def make_hand_msg(names: list, positions: list) -> dict:
+    def make_hand_msg(names: list, positions: list) -> JointTrajectory:
         """Build a single-point JointTrajectory message for the Revo2 hand."""
-        return {
-            "header": {"stamp": HAND_STAMP_ZERO, "frame_id": ""},
-            "joint_names": names,
-            "points": [
-                {
-                    "positions": positions,
-                    "velocities": EMPTY_F64,
-                    "accelerations": EMPTY_F64,
-                    "effort": EMPTY_F64,
-                    "time_from_start": {"sec": np.int32(0), "nanosec": np.uint32(0)},
-                }
-            ],}
+        msg = JointTrajectory()
+        msg.header.stamp = _STAMP_ZERO
+        msg.header.frame_id = ""
+        msg.joint_names = names
+        point = JointTrajectoryPoint()
+        point.positions = [float(p) for p in positions]
+        point.velocities = []
+        point.accelerations = []
+        point.effort = []
+        point.time_from_start = _DURATION_ZERO
+        msg.points = [point]
+        return msg
+
     def extract_pose(value: pa.Array) -> np.ndarray:
         """Read an fk-node pose event: a {"pose": [...]} struct, or a flat array."""
         if pa.types.is_struct(value.type):
             value = value.field("pose")[0].values
         return np.array(value, dtype=np.float32)
 
-    def make_ee_pose_msg(stamp: dict, pose: np.ndarray) -> dict:
+    def make_ee_pose_msg(stamp: Time, pose: np.ndarray) -> PoseStamped:
         """Build a geometry_msgs/PoseStamped from an FK [px,py,pz,qw,qx,qy,qz,...] pose.
 
         Only the first 7 values are used; a trailing gripper value (as the fk
         node emits) is ignored here — that's already published separately.
         """
-        return {
-            "header": {"stamp": stamp, "frame_id": ""},
-            "pose": {
-                "position": {
-                    "x": float(pose[0]),
-                    "y": float(pose[1]),
-                    "z": float(pose[2]),
-                },
-                "orientation": {
-                    "x": float(pose[4]),
-                    "y": float(pose[5]),
-                    "z": float(pose[6]),
-                    "w": float(pose[3]),
-                },
-            },
-        }
+        msg = PoseStamped()
+        msg.header.stamp = stamp
+        msg.header.frame_id = ""
+        msg.pose.position.x = float(pose[0])
+        msg.pose.position.y = float(pose[1])
+        msg.pose.position.z = float(pose[2])
+        msg.pose.orientation.w = float(pose[3])
+        msg.pose.orientation.x = float(pose[4])
+        msg.pose.orientation.y = float(pose[5])
+        msg.pose.orientation.z = float(pose[6])
+        return msg
 
     if args.mode == "sim":
-        p_joint_cmd = node.create_publisher(
-            node.create_topic(
-                "/joint_command",
-                "sensor_msgs/JointState",
-                qos_arm,
-            )
-        )
-        _log("mode=sim: publisher ready: /joint_command")
-
         # sim-only: distal phalanx joints have no independent target (the
         # trigger/joystick streams only drive metacarpal + proximal), so each
         # mirrors its same-finger proximal joint's value (hand_target[1:6]:
@@ -332,8 +343,8 @@ def _run(args: argparse.Namespace) -> None:
         JOINT_NAMES.extend(NAMES_R_HAND_DISTAL)
 
         def make_joint_command_msg(
-            stamp: dict, left: np.ndarray, right: np.ndarray
-        ) -> dict:
+            stamp: Time, left: np.ndarray, right: np.ndarray
+        ) -> JointState:
             """Build a merged JointState message from the latest left/right arm arrays.
 
             The gripper portion comes from hand_target_l/hand_target_r (the
@@ -351,33 +362,16 @@ def _run(args: argparse.Namespace) -> None:
             positions.extend(hand_target_r.tolist())
             positions.extend(hand_target_r[1:6].tolist())
 
-            return {
-                "header": {"stamp": stamp, "frame_id": ""},
-                "name": JOINT_NAMES,
-                "position": positions,
-                "velocity": EMPTY_F64,
-                "effort": EMPTY_F64,
-            }
+            msg = JointState()
+            msg.header.stamp = stamp
+            msg.header.frame_id = ""
+            msg.name = JOINT_NAMES
+            msg.position = [float(p) for p in positions]
+            msg.velocity = []
+            msg.effort = []
+            return msg
 
     else:  # real
-        p_l_arm = node.create_publisher(
-            node.create_topic(
-                "/left_joint_trajectory_controller/joint_trajectory",
-                "trajectory_msgs/JointTrajectory",
-                qos_arm,
-            )
-        )
-        p_r_arm = node.create_publisher(
-            node.create_topic(
-                "/right_joint_trajectory_controller/joint_trajectory",
-                "trajectory_msgs/JointTrajectory",
-                qos_arm,
-            )
-        )
-        _log("mode=real: publishers ready: /left_joint_trajectory_controller/joint_trajectory, "
-             "/right_joint_trajectory_controller/joint_trajectory")
-
-        STAMP_ZERO = {"sec": np.int32(0), "nanosec": np.uint32(0)}
         NAMES_L_ARM = [f"openarm_left_joint{i + 1}" for i in range(7)]
         NAMES_R_ARM = [f"openarm_right_joint{i + 1}" for i in range(7)]
 
@@ -387,34 +381,20 @@ def _run(args: argparse.Namespace) -> None:
         internal_target_l = np.zeros(7, dtype=np.float64)
         internal_target_r = np.zeros(7, dtype=np.float64)
 
-        physical_state = {
-            "left": np.zeros(7, dtype=np.float64),
-            "right": np.zeros(7, dtype=np.float64),
-            "left_ready": False,
-            "right_ready": False,
-        }
-        threading.Thread(
-            target=_spin_robot_state_subscriber,
-            args=(physical_state,),
-            daemon=True,
-        ).start()
-        _log("RobotStateSubscriber background thread started")
-
-        def make_joint_msg(names: list, positions: list) -> dict:
+        def make_joint_msg(names: list, positions: list) -> JointTrajectory:
             """Build a single-point JointTrajectory message for immediate execution."""
-            return {
-                "header": {"stamp": STAMP_ZERO, "frame_id": ""},
-                "joint_names": names,
-                "points": [
-                    {
-                        "positions": positions,
-                        "velocities": EMPTY_F64,
-                        "accelerations": EMPTY_F64,
-                        "effort": EMPTY_F64,
-                        "time_from_start": {"sec": np.int32(0), "nanosec": np.uint32(0)},
-                    }
-                ],
-            }
+            msg = JointTrajectory()
+            msg.header.stamp = _STAMP_ZERO
+            msg.header.frame_id = ""
+            msg.joint_names = names
+            point = JointTrajectoryPoint()
+            point.positions = [float(p) for p in positions]
+            point.velocities = []
+            point.accelerations = []
+            point.effort = []
+            point.time_from_start = _DURATION_ZERO
+            msg.points = [point]
+            return msg
 
         def get_safe_position(
             target: np.ndarray,
@@ -441,7 +421,7 @@ def _run(args: argparse.Namespace) -> None:
             internal_target += step
             return internal_target.tolist()
 
-    # --- 5. Dora Loop ---
+    # --- 4. Dora Loop ---
     dora_node = dora.Node()
     _log("event loop starting (waiting for Dora INPUT events)")
 
@@ -480,9 +460,9 @@ def _run(args: argparse.Namespace) -> None:
             if new_val == button_cache[idx]:
                 continue
             button_cache[idx] = new_val
-            stamp = now_stamp()
+            stamp = _stamp_now()
             msg = make_joy_msg(stamp, button_cache)
-            p_buttons.publish(pa.array([msg]))
+            ros_node.p_buttons.publish(msg)
             continue
 
         if eid in ("trigger_left", "trigger_right"):
@@ -504,8 +484,8 @@ def _run(args: argparse.Namespace) -> None:
             des_r = desired_grip_r * HAND_CLOSED[2:]
             hand_target_r[2:] += np.clip(des_r - hand_target_r[2:], -HAND_MAX_STEP, HAND_MAX_STEP)
             if args.mode == "real":
-                p_l_hand.publish(pa.array([make_hand_msg(NAMES_L_HAND, hand_target_l.tolist())]))
-                p_r_hand.publish(pa.array([make_hand_msg(NAMES_R_HAND, hand_target_r.tolist())]))
+                ros_node.p_l_hand.publish(make_hand_msg(NAMES_L_HAND, hand_target_l.tolist()))
+                ros_node.p_r_hand.publish(make_hand_msg(NAMES_R_HAND, hand_target_r.tolist()))
             continue
 
         if eid in ("joystick_x_left", "joystick_y_left"):
@@ -517,7 +497,7 @@ def _run(args: argparse.Namespace) -> None:
             des = np.clip(stick_l, 0.0, 1.0) * HAND_CLOSED[0:2]
             hand_target_l[0:2] += np.clip(des - hand_target_l[0:2], -HAND_MAX_STEP, HAND_MAX_STEP)
             if args.mode == "real":
-                p_l_hand.publish(pa.array([make_hand_msg(NAMES_L_HAND, hand_target_l.tolist())]))
+                ros_node.p_l_hand.publish(make_hand_msg(NAMES_L_HAND, hand_target_l.tolist()))
             continue
 
         if eid in ("joystick_x_right", "joystick_y_right"):
@@ -527,7 +507,7 @@ def _run(args: argparse.Namespace) -> None:
             des = np.clip(stick_r, 0.0, 1.0) * HAND_CLOSED[0:2]
             hand_target_r[0:2] += np.clip(des - hand_target_r[0:2], -HAND_MAX_STEP, HAND_MAX_STEP)
             if args.mode == "real":
-                p_r_hand.publish(pa.array([make_hand_msg(NAMES_R_HAND, hand_target_r.tolist())]))
+                ros_node.p_r_hand.publish(make_hand_msg(NAMES_R_HAND, hand_target_r.tolist()))
             continue
 
         if eid == "left_position":
@@ -539,12 +519,12 @@ def _run(args: argparse.Namespace) -> None:
 
         if eid == "ee_pose_right":
             pose = extract_pose(value)
-            p_ee_pose_right.publish(pa.array([make_ee_pose_msg(now_stamp(), pose)]))
+            ros_node.p_ee_pose_right.publish(make_ee_pose_msg(_stamp_now(), pose))
             continue
 
         if eid == "ee_pose_left":
             pose = extract_pose(value)
-            p_ee_pose_left.publish(pa.array([make_ee_pose_msg(now_stamp(), pose)]))
+            ros_node.p_ee_pose_left.publish(make_ee_pose_msg(_stamp_now(), pose))
             continue
 
         if eid != "right_position":
@@ -557,25 +537,25 @@ def _run(args: argparse.Namespace) -> None:
 
         try:
             if args.mode == "sim":
-                stamp = now_stamp()
+                stamp = _stamp_now()
                 msg = make_joint_command_msg(stamp, left_cache, right_cache)
-                p_joint_cmd.publish(pa.array([msg]))
+                ros_node.p_joint_cmd.publish(msg)
             else:
                 safe_r = get_safe_position(
                     right_cache[:7],
                     internal_target_r,
-                    physical_state["right"],
-                    physical_state["right_ready"],
+                    ros_node.physical_state["right"],
+                    ros_node.physical_state["right_ready"],
                 )
-                p_r_arm.publish(pa.array([make_joint_msg(NAMES_R_ARM, safe_r)]))
+                ros_node.p_r_arm.publish(make_joint_msg(NAMES_R_ARM, safe_r))
 
                 safe_l = get_safe_position(
                     left_cache[:7],
                     internal_target_l,
-                    physical_state["left"],
-                    physical_state["left_ready"],
+                    ros_node.physical_state["left"],
+                    ros_node.physical_state["left_ready"],
                 )
-                p_l_arm.publish(pa.array([make_joint_msg(NAMES_L_ARM, safe_l)]))
+                ros_node.p_l_arm.publish(make_joint_msg(NAMES_L_ARM, safe_l))
         except Exception:
             _log(f"EXCEPTION publishing joint command on right_position "
                  f"#{_stats['right_count']}")
@@ -596,8 +576,8 @@ def _run(args: argparse.Namespace) -> None:
                 _log(f"right_position #{_stats['right_count']} "
                      f"left_position #{_stats['left_count']} hz={hz:.1f} "
                      f"published /right_..._trajectory + /left_..._trajectory "
-                     f"(right_feedback_ready={physical_state['right_ready']}, "
-                     f"left_feedback_ready={physical_state['left_ready']}), "
+                     f"(right_feedback_ready={ros_node.physical_state['right_ready']}, "
+                     f"left_feedback_ready={ros_node.physical_state['left_ready']}), "
                      f"safe_r[:3]={[round(x, 3) for x in safe_r[:3]]}")
 
 
