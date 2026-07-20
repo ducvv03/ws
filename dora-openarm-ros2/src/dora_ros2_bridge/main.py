@@ -41,6 +41,7 @@ target the way simulation can be.
 import argparse
 import threading
 import time
+import traceback
 
 import dora
 import numpy as np
@@ -48,6 +49,11 @@ import pyarrow as pa
 import rclpy
 from control_msgs.msg import JointTrajectoryControllerState
 from rclpy.node import Node as RclpyNode
+
+
+def _log(msg: str) -> None:
+    """Print a stdout diagnostic line, prefixed like this repo's other Dora nodes' logs."""
+    print(f"[dora-to-ros2] {msg}", flush=True)
 
 
 class RobotStateSubscriber(RclpyNode):
@@ -71,20 +77,33 @@ class RobotStateSubscriber(RclpyNode):
         )
 
     def _left_cb(self, msg: JointTrajectoryControllerState) -> None:
+        if not self._physical_state["left_ready"]:
+            _log("first LEFT controller_state feedback received "
+                 "(/left_joint_trajectory_controller/controller_state)")
         self._physical_state["left"][:] = msg.feedback.positions[:7]
         self._physical_state["left_ready"] = True
 
     def _right_cb(self, msg: JointTrajectoryControllerState) -> None:
+        if not self._physical_state["right_ready"]:
+            _log("first RIGHT controller_state feedback received "
+                 "(/right_joint_trajectory_controller/controller_state)")
         self._physical_state["right"][:] = msg.feedback.positions[:7]
         self._physical_state["right_ready"] = True
 
 
 def _spin_robot_state_subscriber(physical_state: dict) -> None:
-    rclpy.init()
-    node = RobotStateSubscriber(physical_state)
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.init()
+        node = RobotStateSubscriber(physical_state)
+        _log("RobotStateSubscriber thread: rclpy node initialized, spinning "
+             "(subscribed to both arms' .../controller_state)")
+        rclpy.spin(node)
+        node.destroy_node()
+        rclpy.shutdown()
+    except Exception:
+        _log("FATAL: RobotStateSubscriber thread crashed")
+        traceback.print_exc()
+        raise
 
 
 def main() -> None:
@@ -99,14 +118,21 @@ def main() -> None:
         "physical-feedback resync for hardware safety.",
     )
     args = parser.parse_args()
+    _log(f"starting: mode={args.mode}")
     _run(args)
 
 
 def _run(args: argparse.Namespace) -> None:
     # --- 1. ROS 2 Setup ---
-    context = dora.Ros2Context()
-    options = dora.Ros2NodeOptions(rosout=True)
-    node = context.new_node("dora_to_ros2", "/openarm", options)
+    try:
+        context = dora.Ros2Context()
+        options = dora.Ros2NodeOptions(rosout=True)
+        node = context.new_node("dora_to_ros2", "/openarm", options)
+    except Exception:
+        _log("FATAL: failed to create dora Ros2Context/node")
+        traceback.print_exc()
+        raise
+    _log("ROS2 context/node created (dora_to_ros2 in /openarm namespace)")
 
     qos_arm = dora.Ros2QosPolicies(reliable=True)
     # Best-effort: the VR headset re-sends button state on every tick (up to
@@ -140,6 +166,7 @@ def _run(args: argparse.Namespace) -> None:
             qos_buttons,
         )
     )
+    _log("common publishers ready: /vr_buttons, /right_ee_pose, /left_ee_pose")
 
     # --- 3. Pre-defined Constants ---
     EMPTY_F64 = np.array([], dtype=np.float64)
@@ -189,6 +216,8 @@ def _run(args: argparse.Namespace) -> None:
             qos_arm,
         )
     )
+    _log("hand publishers ready: /left_revo2_hand_controller/joint_trajectory, "
+         "/right_revo2_hand_controller/joint_trajectory")
 
     HAND_FINGERS = ["thumb_metacarpal", "thumb_proximal", "index_proximal",
                     "middle_proximal", "ring_proximal", "pinky_proximal"]
@@ -274,6 +303,7 @@ def _run(args: argparse.Namespace) -> None:
                 qos_arm,
             )
         )
+        _log("mode=sim: publisher ready: /joint_command")
 
         # sim-only: distal phalanx joints have no independent target (the
         # trigger/joystick streams only drive metacarpal + proximal), so each
@@ -344,6 +374,8 @@ def _run(args: argparse.Namespace) -> None:
                 qos_arm,
             )
         )
+        _log("mode=real: publishers ready: /left_joint_trajectory_controller/joint_trajectory, "
+             "/right_joint_trajectory_controller/joint_trajectory")
 
         STAMP_ZERO = {"sec": np.int32(0), "nanosec": np.uint32(0)}
         NAMES_L_ARM = [f"openarm_left_joint{i + 1}" for i in range(7)]
@@ -366,6 +398,7 @@ def _run(args: argparse.Namespace) -> None:
             args=(physical_state,),
             daemon=True,
         ).start()
+        _log("RobotStateSubscriber background thread started")
 
         def make_joint_msg(names: list, positions: list) -> dict:
             """Build a single-point JointTrajectory message for immediate execution."""
@@ -410,6 +443,7 @@ def _run(args: argparse.Namespace) -> None:
 
     # --- 5. Dora Loop ---
     dora_node = dora.Node()
+    _log("event loop starting (waiting for Dora INPUT events)")
 
     # Latest known [7 arm joints, 1 gripper] per side. right_position always
     # drives publishing (see below); left_cache only updates in the
@@ -421,6 +455,17 @@ def _run(args: argparse.Namespace) -> None:
     # Latest thumbstick axes [x, y] per controller, driving each hand's thumb.
     stick_l = np.zeros(2, dtype=np.float64)
     stick_r = np.zeros(2, dtype=np.float64)
+
+    # Heartbeat: right_position is the tick that drives arm publishing, so
+    # logging every LOG_EVERY of them (rather than every single one, which
+    # would flood stdout at the ~200 Hz this normally runs at) makes it
+    # possible to tell "no right_position events ever arrive" (no heartbeat
+    # at all) apart from "events arrive but publishing raises" (heartbeat
+    # never reached because the try/except below logs and stops first) apart
+    # from "publishing normally, arm just isn't moving for some other reason"
+    # (heartbeat keeps appearing with changing right_arm/safe_r values).
+    LOG_EVERY = 200
+    _stats = {"right_count": 0, "left_count": 0, "t0": time.time()}
 
     for event in dora_node:
         if event["type"] != "INPUT":
@@ -486,6 +531,7 @@ def _run(args: argparse.Namespace) -> None:
             continue
 
         if eid == "left_position":
+            _stats["left_count"] += 1
             vals = value.to_numpy().astype(np.float64)
             n = min(len(vals), 8)
             left_cache[:n] = vals[:n]
@@ -504,31 +550,55 @@ def _run(args: argparse.Namespace) -> None:
         if eid != "right_position":
             continue
 
+        _stats["right_count"] += 1
         vals = value.to_numpy().astype(np.float64)
         n = min(len(vals), 8)
         right_cache[:n] = vals[:n]
 
-        if args.mode == "sim":
-            stamp = now_stamp()
-            msg = make_joint_command_msg(stamp, left_cache, right_cache)
-            p_joint_cmd.publish(pa.array([msg]))
-        else:
-            safe_r = get_safe_position(
-                right_cache[:7],
-                internal_target_r,
-                physical_state["right"],
-                physical_state["right_ready"],
-            )
-            p_r_arm.publish(pa.array([make_joint_msg(NAMES_R_ARM, safe_r)]))
+        try:
+            if args.mode == "sim":
+                stamp = now_stamp()
+                msg = make_joint_command_msg(stamp, left_cache, right_cache)
+                p_joint_cmd.publish(pa.array([msg]))
+            else:
+                safe_r = get_safe_position(
+                    right_cache[:7],
+                    internal_target_r,
+                    physical_state["right"],
+                    physical_state["right_ready"],
+                )
+                p_r_arm.publish(pa.array([make_joint_msg(NAMES_R_ARM, safe_r)]))
 
-            safe_l = get_safe_position(
-                left_cache[:7],
-                internal_target_l,
-                physical_state["left"],
-                physical_state["left_ready"],
-            )
-            p_l_arm.publish(pa.array([make_joint_msg(NAMES_L_ARM, safe_l)]))
-            #printf(pa.array([make_joint_msg(NAMES_L_ARM, safe_l)]))
+                safe_l = get_safe_position(
+                    left_cache[:7],
+                    internal_target_l,
+                    physical_state["left"],
+                    physical_state["left_ready"],
+                )
+                p_l_arm.publish(pa.array([make_joint_msg(NAMES_L_ARM, safe_l)]))
+        except Exception:
+            _log(f"EXCEPTION publishing joint command on right_position "
+                 f"#{_stats['right_count']}")
+            traceback.print_exc()
+            continue
+
+        if _stats["right_count"] % LOG_EVERY == 0:
+            now = time.time()
+            dt = now - _stats["t0"]
+            hz = LOG_EVERY / dt if dt > 0 else 0.0
+            _stats["t0"] = now
+            if args.mode == "sim":
+                _log(f"right_position #{_stats['right_count']} "
+                     f"left_position #{_stats['left_count']} hz={hz:.1f} "
+                     f"/joint_command published, "
+                     f"right_arm[:3]={np.round(right_cache[:3], 3).tolist()}")
+            else:
+                _log(f"right_position #{_stats['right_count']} "
+                     f"left_position #{_stats['left_count']} hz={hz:.1f} "
+                     f"published /right_..._trajectory + /left_..._trajectory "
+                     f"(right_feedback_ready={physical_state['right_ready']}, "
+                     f"left_feedback_ready={physical_state['left_ready']}), "
+                     f"safe_r[:3]={[round(x, 3) for x in safe_r[:3]]}")
 
 
 if __name__ == "__main__":
