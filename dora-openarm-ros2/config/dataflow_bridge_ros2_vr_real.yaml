@@ -11,6 +11,10 @@ nodes:
       - pose_left
       - trigger_left
       - joystick_y
+      - joystick_x_left
+      - joystick_y_left
+      - joystick_x_right
+      - joystick_y_right
       - button_a
       - button_b
       - button_x
@@ -68,3 +72,9 @@ nodes:
       button_b: udp-receiver/button_b
       button_x: udp-receiver/button_x
       button_y: udp-receiver/button_y
+      trigger_left: udp-receiver/trigger_left
+      trigger_right: udp-receiver/trigger_right
+      joystick_x_left: udp-receiver/joystick_x_left
+      joystick_y_left: udp-receiver/joystick_y_left
+      joystick_x_right: udp-receiver/joystick_x_right
+      joystick_y_right: udp-receiver/joystick_y_right
