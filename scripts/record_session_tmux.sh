@@ -2,18 +2,17 @@
 # Opens the 6-terminal OpenArm Revo2 real-hardware recording session as one tmux window with
 # 6 tiled panes, instead of manually opening/cd'ing into 6 separate terminals every time:
 #
-#   pane 0 (~/pnk/ws)                   -> can_configure (auto) + ros2 launch openarm_bringup ... (typed, NOT auto-run)
+#   pane 0 (~/pnk/ws)                   -> ros2 launch openarm_bringup ... (bimanual bringup, typed, NOT auto-run)
 #   pane 1 (~/pnk/ws/dora-openarm-ros2) -> uv run dora run ... (VR bridge, typed, NOT auto-run)
-#   pane 2 (~/pnk/ws)                   -> ros2 launch realsense2_camera ... cam_head (auto-start)
+#   pane 2 (~/pnk/ws)                   -> can_configure (auto) + ros2 launch realsense2_camera ... cam_head (auto-start)
 #   pane 3 (~/pnk/ws)                   -> ros2 launch realsense2_camera ... cam_left (auto-start)
 #   pane 4 (~/pnk/ws)                   -> ros2 launch realsense2_camera ... cam_right (auto-start)
 #   pane 5 (~/pnk/ws)                   -> ros2 bag record ... (typed, NOT auto-run)
 #
-# Pane 0 auto-runs `can_configure` for both CAN interfaces, then leaves the bimanual bringup
-# command typed but NOT submitted — press Enter yourself once both CAN interfaces are configured.
-# NOTE: if a sudo password prompt is still active when this script types the bringup command, the
-# typed characters can get swallowed by the password prompt. If pane 0 doesn't show the bringup
-# command ready after the CAN configure step, just retype it.
+# Pane 2 auto-runs `can_configure` for both CAN interfaces, then auto-launches cam_head once both
+# succeed (chained on one line so bash itself waits out each sudo prompt). Pane 0's bimanual
+# bringup command is typed but NOT submitted from the start — press Enter there yourself once
+# pane 2 shows both CAN interfaces configured.
 #
 # Pane 1 (VR bridge) and pane 5 (rosbag record) are also typed but NOT submitted — press Enter in
 # each only after confirming (from panes 0/2/3/4's logs) that the CAN arms are up and all 3
@@ -40,10 +39,8 @@ tmux split-window -v -t "$SESSION:0.2" -c "$HOME/pnk/ws"
 tmux split-window -v -t "$SESSION:0.4" -c "$HOME/pnk/ws"
 tmux select-layout -t "$SESSION:0" tiled
 
-# Pane 0: configure both CAN interfaces (auto-starts), then leave the real-hardware bimanual
-# bringup typed but NOT submitted.
-tmux send-keys -t "$SESSION:0.0" \
-  'sudo openarm-can-cli -i can0 can_configure && sudo openarm-can-cli -i can1 can_configure' C-m
+# Pane 0: leave the real-hardware bimanual bringup typed but NOT submitted (wait for pane 2's
+# CAN configure to finish first).
 tmux send-keys -t "$SESSION:0.0" \
   'ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1 use_fake_hand:=true'
 
@@ -51,9 +48,11 @@ tmux send-keys -t "$SESSION:0.0" \
 tmux send-keys -t "$SESSION:0.1" \
   'uv run dora run config/dataflow_bridge_ros2_vr_real.yaml --uv'
 
-# Pane 2: cam_head (auto-starts).
+# Pane 2: configure both CAN interfaces, then cam_head (auto-starts) — chained on one line so bash
+# itself waits out each sudo prompt before launching the camera, instead of racing a second
+# send-keys call against an in-progress password prompt.
 tmux send-keys -t "$SESSION:0.2" \
-  'ros2 launch realsense2_camera rs_launch.py camera_name:=cam_head camera_namespace:=cam_head serial_no:=_243222075840 enable_color:=true enable_depth:=false enable_infra1:=false enable_infra2:=false rgb_camera.color_profile:=640x480x30 initial_reset:=true' C-m
+  'sudo openarm-can-cli -i can0 can_configure && sudo openarm-can-cli -i can1 can_configure && ros2 launch realsense2_camera rs_launch.py camera_name:=cam_head camera_namespace:=cam_head serial_no:=_243222075840 enable_color:=true enable_depth:=false enable_infra1:=false enable_infra2:=false rgb_camera.color_profile:=640x480x30 initial_reset:=true' C-m
 
 # Pane 3: cam_left (auto-starts).
 tmux send-keys -t "$SESSION:0.3" \
