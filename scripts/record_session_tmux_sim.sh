@@ -3,7 +3,7 @@
 # fake-hardware session as one tmux window with 3 tiled panes:
 #
 #   pane 0 (~/pnk/ws)                   -> ros2 launch openarm_bringup ... use_fake_hardware:=true (auto-start)
-#   pane 1 (~/pnk/ws/dora-openarm-ros2) -> uv run dora run ... _sim.yaml (VR bridge, typed, NOT auto-run)
+#   pane 1 (~/pnk/ws/dora-openarm-ros2) -> venv setup (auto) + uv run dora run ... _sim.yaml (VR bridge, typed, NOT auto-run)
 #   pane 2 (~/pnk/ws)                   -> ros2 bag record ... (typed, NOT auto-run)
 #
 # No CAN configuration and no cameras here — fake hardware needs neither. Pane 0 is safe to
@@ -40,7 +40,10 @@ tmux select-layout -t "$SESSION:0" tiled
 tmux send-keys -t "$SESSION:0.0" \
   'ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=true use_fake_hand:=true' C-m
 
-# Pane 1: Dora ROS2<->VR bridge (sim dataflow) — typed but deliberately NOT submitted.
+# Pane 1: set up the venv (auto-starts), then leave the Dora ROS2<->VR bridge (sim dataflow)
+# command typed but deliberately NOT submitted.
+tmux send-keys -t "$SESSION:0.1" \
+  'cd ~/pnk/ws/dora-openarm-ros2/ && python3 -m venv .venv && source .venv/bin/activate' C-m
 tmux send-keys -t "$SESSION:0.1" \
   'uv run dora run config/dataflow_bridge_ros2_vr_sim.yaml --uv'
 

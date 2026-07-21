@@ -3,7 +3,7 @@
 # 6 tiled panes, instead of manually opening/cd'ing into 6 separate terminals every time:
 #
 #   pane 0 (~/pnk/ws)                   -> ros2 launch openarm_bringup ... (bimanual bringup, typed, NOT auto-run)
-#   pane 1 (~/pnk/ws/dora-openarm-ros2) -> uv run dora run ... (VR bridge, typed, NOT auto-run)
+#   pane 1 (~/pnk/ws/dora-openarm-ros2) -> venv setup (auto) + uv run dora run ... (VR bridge, typed, NOT auto-run)
 #   pane 2 (~/pnk/ws)                   -> can_configure (auto) + ros2 launch realsense2_camera ... cam_head (auto-start)
 #   pane 3 (~/pnk/ws)                   -> ros2 launch realsense2_camera ... cam_left (auto-start)
 #   pane 4 (~/pnk/ws)                   -> ros2 launch realsense2_camera ... cam_right (auto-start)
@@ -44,7 +44,10 @@ tmux select-layout -t "$SESSION:0" tiled
 tmux send-keys -t "$SESSION:0.0" \
   'ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1 use_fake_hand:=true'
 
-# Pane 1: Dora ROS2<->VR bridge — typed but deliberately NOT submitted.
+# Pane 1: set up the venv (auto-starts), then leave the Dora ROS2<->VR bridge command typed but
+# deliberately NOT submitted.
+tmux send-keys -t "$SESSION:0.1" \
+  'cd ~/pnk/ws/dora-openarm-ros2/ && python3 -m venv .venv && source .venv/bin/activate' C-m
 tmux send-keys -t "$SESSION:0.1" \
   'uv run dora run config/dataflow_bridge_ros2_vr_real.yaml --uv'
 
