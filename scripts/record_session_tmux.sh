@@ -7,7 +7,7 @@
 #   pane 2 (~/pnk/ws)                   -> can_configure (auto) + ros2 launch realsense2_camera ... cam_head (auto-start)
 #   pane 3 (~/pnk/ws)                   -> ros2 launch realsense2_camera ... cam_left (auto-start)
 #   pane 4 (~/pnk/ws)                   -> ros2 launch realsense2_camera ... cam_right (auto-start)
-#   pane 5 (~/pnk/ws)                   -> ros2 bag record ... (typed, NOT auto-run)
+#   pane 5 (~/data)                     -> ros2 bag record ... (typed, NOT auto-run)
 #
 # Pane 2 auto-runs `can_configure` for both CAN interfaces, then auto-launches cam_head once both
 # succeed (chained on one line so bash itself waits out each sudo prompt). Pane 0's bimanual
@@ -36,11 +36,13 @@ tmux split-window -h -t "$SESSION:0" -c "$HOME/pnk/ws/dora-openarm-ros2"
 tmux split-window -v -t "$SESSION:0.0" -c "$HOME/pnk/ws"
 tmux split-window -v -t "$SESSION:0.1" -c "$HOME/pnk/ws"
 tmux split-window -v -t "$SESSION:0.2" -c "$HOME/pnk/ws"
-tmux split-window -v -t "$SESSION:0.4" -c "$HOME/pnk/ws"
+tmux split-window -v -t "$SESSION:0.4" -c "$HOME/data"
 tmux select-layout -t "$SESSION:0" tiled
 
-# Pane 0: leave the real-hardware bimanual bringup typed but NOT submitted (wait for pane 2's
-# CAN configure to finish first).
+# Pane 0: cd to ~/pnk/ws (auto-starts), then leave the real-hardware bimanual bringup typed but
+# NOT submitted (wait for pane 2's CAN configure to finish first).
+tmux send-keys -t "$SESSION:0.0" \
+  'cd ~/pnk/ws' C-m
 tmux send-keys -t "$SESSION:0.0" \
   'ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1 use_fake_hand:=true'
 
@@ -65,8 +67,10 @@ tmux send-keys -t "$SESSION:0.3" \
 tmux send-keys -t "$SESSION:0.4" \
   'ros2 launch realsense2_camera rs_launch.py camera_name:=cam_right camera_namespace:=cam_right serial_no:=_260322270361 enable_color:=true enable_depth:=false enable_infra1:=false enable_infra2:=false depth_module.color_profile:=640x480x30' C-m
 
-# Pane 5: ros2 bag record of the take-box topic set (real hardware) — typed but deliberately NOT
-# submitted.
+# Pane 5: cd to ~/data (auto-starts), then leave the ros2 bag record of the take-box topic set
+# (real hardware) typed but deliberately NOT submitted.
+tmux send-keys -t "$SESSION:0.5" \
+  'cd ~/data' C-m
 tmux send-keys -t "$SESSION:0.5" \
   'mkdir -p bags && ros2 bag record -o bags/take_box_$(date +%Y%m%d_%H%M%S) /cam_head/cam_head/color/image_raw /cam_left/cam_left/color/image_raw /cam_right/cam_right/color/image_raw /left_joint_trajectory_controller/controller_state /left_joint_trajectory_controller/joint_trajectory /left_revo2_hand_controller/controller_state /left_revo2_hand_controller/joint_trajectory /right_joint_trajectory_controller/controller_state /right_joint_trajectory_controller/joint_trajectory /right_revo2_hand_controller/controller_state /right_revo2_hand_controller/joint_trajectory /tf /tf_static /vr_buttons /left_ee_pose /right_ee_pose'
 
