@@ -91,10 +91,13 @@ class OpenArmHW : public hardware_interface::SystemInterface {
   // no separate publisher in the teleop bridge or UDP server to keep in step,
   // and it works the same whether the arm is driven over a topic or an action.
   //
-  // Decimated: an integral term does not need 750 Hz, and a publish on every
-  // control cycle is real work inside write(). The message is built once in
-  // on_init() so the hot path only overwrites `values`.
-  static constexpr size_t PID_REFERENCE_DECIMATION = 3;  // 750 Hz / 3 = 250 Hz
+  // Published on every control cycle (decimation 1 => the full 750 Hz). The
+  // message is built once in on_init() so the hot path only overwrites `values`
+  // and publishes -- no allocation. Raise this if write() starts overrunning:
+  // 2 gives 375 Hz, 3 gives 250 Hz, and the integral term does not need the
+  // full rate. It matters more if the d gain is ever raised, since d
+  // differentiates the reference and a decimated one arrives as a staircase.
+  static constexpr size_t PID_REFERENCE_DECIMATION = 1;  // 750 Hz
   static constexpr int PID_REFERENCE_LOG_THROTTLE_MS = 2000;
   size_t pid_reference_counter_ = 0;
   control_msgs::msg::MultiDOFCommand pid_reference_msg_;
