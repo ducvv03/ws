@@ -168,6 +168,48 @@ def controller_spawner(context: LaunchContext, robot_controller, arm_prefix):
     ]
 
 
+def arm_pid_controller_spawner(context: LaunchContext, use_payload_compensation, arm_prefix):
+    """Spawn the arm PID controllers used for payload / static-droop compensation.
+
+    These claim the *effort* command interface only, so they coexist with
+    whichever position controller is active -- no interface conflict. Their
+    output lands in tau_commands_, which OpenArmHW::write() adds to the gravity
+    torques and sends as the MIT frame's t_ff term.
+
+    Off by default: the controller injects torque, and it only behaves once
+    something publishes control_msgs/MultiDOFCommand on
+    <arm>_arm_pid_controller/reference tracking the same setpoint the position
+    controller is following. Activated without that reference it holds the pose
+    it saw at activation, and its integral will wind up fighting any commanded
+    motion (bounded by u_clamp, but still wrong).
+    """
+    use_payload_compensation_str = context.perform_substitution(use_payload_compensation)
+
+    if use_payload_compensation_str.lower() not in ("true", "1"):
+        print("[openarm.bimanual.launch] payload compensation disabled "
+              f"(use_payload_compensation:={use_payload_compensation_str}), "
+              "arm PID controllers not spawned")
+        return []
+
+    namespace = namespace_from_context(context, arm_prefix)
+    controller_manager_ref = (
+        f"/{namespace}/controller_manager" if namespace else "/controller_manager"
+    )
+
+    print("[openarm.bimanual.launch] payload compensation enabled, spawning "
+          f"left/right_arm_pid_controller on {controller_manager_ref}")
+
+    return [
+        Node(
+            package="controller_manager",
+            executable="spawner",
+            namespace=namespace,
+            arguments=["left_arm_pid_controller", "right_arm_pid_controller",
+                       "-c", controller_manager_ref],
+        )
+    ]
+
+
 def generate_launch_description():
     """Generate launch description for OpenArm bimanual configuration."""
 
@@ -234,6 +276,20 @@ def generate_launch_description():
             default_value="openarm_bimanual_controllers.yaml",
             description="Controllers file to use.",
         ),
+        DeclareLaunchArgument(
+            "use_payload_compensation",
+            default_value="false",
+            choices=["true", "false"],
+            description=(
+                "Spawn left/right_arm_pid_controller, which add an integral "
+                "torque term on top of gravity compensation to cancel the "
+                "static droop caused by a grasped payload. Requires a "
+                "control_msgs/MultiDOFCommand publisher on "
+                "<arm>_arm_pid_controller/reference carrying the same setpoint "
+                "the position controller is tracking -- without it the "
+                "integral will fight commanded motion."
+            ),
+        ),
     ]
 
     description_package = LaunchConfiguration("description_package")
@@ -248,6 +304,7 @@ def generate_launch_description():
     right_can_interface = LaunchConfiguration("right_can_interface")
     left_can_interface = LaunchConfiguration("left_can_interface")
     arm_prefix = LaunchConfiguration("arm_prefix")
+    use_payload_compensation = LaunchConfiguration("use_payload_compensation")
 
     try:
         camera_pkg_share = get_package_share_directory("openarm_bringup")
@@ -337,7 +394,17 @@ def generate_launch_description():
         )]
     )
 
+    arm_pid_controller_spawner_func = OpaqueFunction(
+        function=arm_pid_controller_spawner,
+        args=[use_payload_compensation, arm_prefix]
+    )
+
     LAUNCH_DELAY_SECONDS = 1.0
+    # Spawn the PID controllers after the position controllers are up. They
+    # claim a different command interface so there is no conflict, but letting
+    # position control settle first keeps the integral from starting against a
+    # moving target.
+    PID_SPAWN_DELAY_SECONDS = 2.0
 
     launch_actions = declared_arguments + [
         robot_nodes_spawner_func,
@@ -345,6 +412,7 @@ def generate_launch_description():
         TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[joint_state_broadcaster_spawner]),
         TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[controller_spawner_func]),
         TimerAction(period=LAUNCH_DELAY_SECONDS, actions=[hand_controller_spawner]),
+        TimerAction(period=PID_SPAWN_DELAY_SECONDS, actions=[arm_pid_controller_spawner_func]),
     ]
 
     if camera_tf_node:

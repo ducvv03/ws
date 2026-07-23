@@ -44,6 +44,16 @@ controller_manager:
     right_revo2_hand_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
+    # Payload / static-droop compensation. Claims the *effort* command interface
+    # only, so it runs alongside the position controllers without conflict.
+    # Its output lands in tau_commands_, which OpenArmHW::write() adds to
+    # grav_torques_ and sends as the MIT frame's t_ff term.
+    left_arm_pid_controller:
+      type: pid_controller/PidController
+
+    right_arm_pid_controller:
+      type: pid_controller/PidController
+
 left_forward_position_controller:
   ros__parameters:
     joints:
@@ -220,3 +230,339 @@ right_joint_trajectory_controller:
       openarm_right_joint5: { trajectory: 0.0, goal: 0.0 }
       openarm_right_joint6: { trajectory: 0.0, goal: 0.0 }
       openarm_right_joint7: { trajectory: 0.0, goal: 0.0 }
+
+# =============================================================================
+# Arm PID controllers -- integral-only payload / static-droop compensation
+# =============================================================================
+#
+# Why integral-only (p = 0, d = 0):
+#   The Damiao motors run MIT mode, so the firmware already closes a PD loop:
+#       tau_motor = kp*(q_d - q) + kd*(qd_d - qd) + t_ff
+#   with kp/kd coming from the URDF hardware_parameters (kp_1..kp_7). Adding
+#   another P/D term here would stack a second, slower (750 Hz) PD loop on top
+#   of the firmware one -- gains add up and the outer loop's phase lag eats the
+#   stability margin. The integral term is the part MIT mode does *not* have,
+#   and it is exactly what cancels a constant unmodelled load (a grasped
+#   payload, or URDF mass error) without needing to know the payload mass.
+#
+# Why increasing kp cannot do this job instead:
+#   Steady-state droop under a constant load is e = tau_load / kp, which never
+#   reaches zero. Raising kp needs kd to rise as sqrt(kp) to keep damping, but
+#   the MIT protocol caps kd at 5.0, so the stiffness route runs out of damping
+#   long before it runs out of droop.
+#
+#   Note the current kd values (2.75/2.5/2.0/2.0/0.7/0.6/0.5) sit well under
+#   that cap, giving zeta ~ 0.23 at the shoulder -- underdamped already, and a
+#   payload lowers it further since zeta = kd / (2*sqrt(kp*M)). Raising kd
+#   toward 4.5 in control_gains.yaml is a cheap, independent improvement worth
+#   doing alongside this controller. It helps stability, not droop.
+#
+# On p and d (small, deliberately conservative):
+#   The integral is what actually cancels payload droop. p and d are set to a
+#   small fraction of the firmware's own gains -- about 11% of kp and 15% of kd
+#   (kp = 70/70/70/60/10/10/10, kd = 2.75/2.5/2.0/2.0/0.7/0.6/0.5, from
+#   openarm_description/.../config/arm/control_gains.yaml). They trim the
+#   transient; they are not the mechanism.
+#
+#   Understand what each one can and cannot do here:
+#     - d contributes exactly zero static torque. At standstill reference and
+#       state are both constant, de/dt = 0, and the term vanishes however it is
+#       tuned. It only shapes the transient.
+#     - p produces static torque, but only in proportion to an error that has
+#       to persist -- that error *is* the droop. It also duplicates kp, just a
+#       cycle later. With a 1 kg payload joint1 needs 5.24 Nm, so kp = 70
+#       leaves e = 4.29 deg; adding p = 8 here takes it to ~3.9 deg. Reaching
+#       0.5 deg would need an effective kp near 600, whose matching damping
+#       (kd ~ 15) is far past the MIT cap of 5.0.
+#   So p and d are a small refinement on top of the integral, not a substitute.
+#   If droop is still visible, raise i -- not p.
+#
+#   d is kept especially small because it differentiates (reference - state):
+#     - a reference arriving at 50 Hz from a mirror node is a staircase, and
+#       its derivative is a spike train injected as torque;
+#     - state is raw encoder position, so differentiating amplifies noise.
+#   Raise d only after the reference path is smooth and fast -- push
+#   state_publish_rate to 200+, or chain the controller instead of mirroring.
+#   If you see torque chatter at standstill, set d back to 0.0 first.
+#
+#   u_clamp is deliberately set ABOVE i_clamp. With p and d active the total
+#   output would otherwise saturate before the integral reached its own clamp,
+#   and back_calculation would then bleed the integral away -- defeating the
+#   whole point. The gap leaves room for the p and d terms.
+#
+#   d is different and is worth enabling eventually. The kd <= 5.0 protocol cap
+#   applies to the MIT frame only; damping injected here goes out through t_ff
+#   and is bounded by T_MAX instead. That makes this the only route to more
+#   damping than the firmware allows -- which is exactly what a payload needs,
+#   since added mass drops zeta = kd / (2*sqrt(kp*M)).
+#
+#   It stays 0 for now because d differentiates (reference - state):
+#     - reference arriving at 50 Hz from a mirror node is a staircase, and its
+#       derivative is a spike train that would be injected as torque;
+#     - state is raw encoder position, so differentiating amplifies noise.
+#   Enable d (start ~0.5) only after the reference path is smooth and fast --
+#   raise state_publish_rate to 200+, or chain the controller instead of
+#   mirroring over a topic.
+#
+# i_clamp / u_clamp are sized per joint from the motor's torque limit
+# (MOTOR_LIMIT_PARAMS in openarm_can), kept at roughly 15-25% of T_MAX:
+#   joint1,2 -> DM8009, T_MAX 54 Nm
+#   joint3,4 -> DM4340, T_MAX 28 Nm
+#   joint5-7 -> DM4310, T_MAX 10 Nm
+# Note the real headroom is T_MAX - |gravity| - |kp*e|, not T_MAX. Gravity
+# already consumes a large share at the shoulder in an outstretched pose.
+#
+# Gains are sized from the URDF, not guessed. Worst-case static gravity torque
+# over the whole reachable joint space (only links distal to each joint count,
+# 1 kg payload at the TCP):
+#
+#   joint  motor    arm-only   1 kg payload   total   T_MAX   % used
+#   1      DM8009    10.00 Nm      5.24 Nm   15.24     54     28%
+#   2      DM8009     9.99         5.22      15.21     54     28%
+#   3      DM4340     3.52         3.09       6.62     28     24%
+#   4      DM4340     3.54         3.09       6.63     28     24%
+#   5      DM4310     0.34         0.98       1.32     10     13%
+#   6      DM4310     0.32         0.98       1.30     10     13%
+#   7      DM4310     0.32         0.98       1.30     10     13%
+#
+# joint1 is a shoulder pitch, not a yaw: the arm mounts to the body with
+# rpy="-1.5708 0 0", which rotates its local z axis onto world (0, 1, 0).
+# Its axis is horizontal and -- being the first joint -- pose-independent, so
+# it carries the full payload moment in every configuration. It needs the
+# largest integral of the seven, tied with joint2.
+#
+# The joints that momentarily see no gravity load are 3 and 5 (world axis
+# (0, 0, -1) at q = 0), but their axes tilt as the arm moves, so they still
+# reach 3.09 and 0.98 Nm of payload torque. None of the seven can be left at
+# zero integral.
+#
+# i_clamp / u_clamp are set to roughly twice the 1 kg payload torque, i.e.
+# enough authority for a ~2 kg payload and no more. Real headroom is
+# T_MAX - |gravity|, which is 38.8 Nm at joint1/2 and 8.7 Nm at joint5-7, so
+# these clamps stay far from saturation while still bounding a runaway.
+#
+# Reference source: PidController does not generate its own setpoint. It needs
+# control_msgs/MultiDOFCommand on ~/reference, either from a mirror node
+# republishing <arm>_joint_trajectory_controller/controller_state.reference, or
+# from an upstream controller in a chain. Until a reference arrives,
+# set_current_state_as_first_setpoint holds the pose at activation.
+
+left_arm_pid_controller:
+  ros__parameters:
+    dof_names:
+      - openarm_left_joint1
+      - openarm_left_joint2
+      - openarm_left_joint3
+      - openarm_left_joint4
+      - openarm_left_joint5
+      - openarm_left_joint6
+      - openarm_left_joint7
+
+    command_interface: effort
+    reference_and_state_interfaces:
+      - position
+
+    # Hold at the activation pose until the first reference arrives.
+    set_current_state_as_first_setpoint: true
+    use_external_measured_states: false
+
+    gains:
+      # DM8009, T_MAX 54 Nm -- shoulder pitch, world axis (0, 1, 0).
+      # Pose-independent horizontal axis: carries 5.24 Nm per kg of payload in
+      # every configuration, the worst of the seven.
+      openarm_left_joint1:
+        p: 8.0        # ~11% of firmware kp = 70
+        i: 8.0
+        d: 0.4        # ~15% of firmware kd = 2.75
+        i_clamp_max: 10.0
+        i_clamp_min: -10.0
+        u_clamp_max: 13.0
+        u_clamp_min: -13.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002   # rad, below encoder noise floor -- do not integrate
+        save_i_term: false      # reset integral on re-activation
+      # DM8009, T_MAX 54 Nm -- 5.22 Nm per kg of payload, effectively tied
+      # with joint1.
+      openarm_left_joint2:
+        p: 8.0        # ~11% of firmware kp = 70
+        i: 8.0
+        d: 0.35       # ~14% of firmware kd = 2.5
+        i_clamp_max: 10.0
+        i_clamp_min: -10.0
+        u_clamp_max: 13.0
+        u_clamp_min: -13.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      # DM4340, T_MAX 28 Nm -- vertical axis at q = 0, but tilts with pose and
+      # still reaches 3.09 Nm per kg of payload.
+      openarm_left_joint3:
+        p: 8.0        # ~11% of firmware kp = 70
+        i: 5.0
+        d: 0.3        # ~15% of firmware kd = 2.0
+        i_clamp_max: 6.0
+        i_clamp_min: -6.0
+        u_clamp_max: 8.0
+        u_clamp_min: -8.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      # DM4340, T_MAX 28 Nm -- elbow pitch, 3.09 Nm per kg of payload.
+      openarm_left_joint4:
+        p: 7.0        # ~12% of firmware kp = 60
+        i: 5.0
+        d: 0.3        # ~15% of firmware kd = 2.0
+        i_clamp_max: 6.0
+        i_clamp_min: -6.0
+        u_clamp_max: 8.0
+        u_clamp_min: -8.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      # DM4310, T_MAX 10 Nm -- wrist, 0.98 Nm per kg of payload (joints 5-7 are
+      # close to the TCP, so the payload lever arm is short).
+      openarm_left_joint5:
+        p: 1.5        # ~15% of firmware kp = 10
+        i: 2.0
+        d: 0.1        # ~14% of firmware kd = 0.7
+        i_clamp_max: 2.0
+        i_clamp_min: -2.0
+        u_clamp_max: 3.0
+        u_clamp_min: -3.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      openarm_left_joint6:
+        p: 1.5        # ~15% of firmware kp = 10
+        i: 2.0
+        d: 0.1        # ~17% of firmware kd = 0.6
+        i_clamp_max: 2.0
+        i_clamp_min: -2.0
+        u_clamp_max: 3.0
+        u_clamp_min: -3.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      openarm_left_joint7:
+        p: 1.5        # ~15% of firmware kp = 10
+        i: 2.0
+        d: 0.08       # ~16% of firmware kd = 0.5
+        i_clamp_max: 2.0
+        i_clamp_min: -2.0
+        u_clamp_max: 3.0
+        u_clamp_min: -3.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+
+right_arm_pid_controller:
+  ros__parameters:
+    dof_names:
+      - openarm_right_joint1
+      - openarm_right_joint2
+      - openarm_right_joint3
+      - openarm_right_joint4
+      - openarm_right_joint5
+      - openarm_right_joint6
+      - openarm_right_joint7
+
+    command_interface: effort
+    reference_and_state_interfaces:
+      - position
+
+    set_current_state_as_first_setpoint: true
+    use_external_measured_states: false
+
+    gains:
+      # DM8009, T_MAX 54 Nm -- shoulder pitch, world axis (0, -1, 0).
+      openarm_right_joint1:
+        p: 8.0
+        i: 8.0
+        d: 0.4
+        i_clamp_max: 10.0
+        i_clamp_min: -10.0
+        u_clamp_max: 13.0
+        u_clamp_min: -13.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      openarm_right_joint2:
+        p: 8.0
+        i: 8.0
+        d: 0.35
+        i_clamp_max: 10.0
+        i_clamp_min: -10.0
+        u_clamp_max: 13.0
+        u_clamp_min: -13.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      openarm_right_joint3:
+        p: 8.0
+        i: 5.0
+        d: 0.3
+        i_clamp_max: 6.0
+        i_clamp_min: -6.0
+        u_clamp_max: 8.0
+        u_clamp_min: -8.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      openarm_right_joint4:
+        p: 7.0
+        i: 5.0
+        d: 0.3
+        i_clamp_max: 6.0
+        i_clamp_min: -6.0
+        u_clamp_max: 8.0
+        u_clamp_min: -8.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      openarm_right_joint5:
+        p: 1.5
+        i: 2.0
+        d: 0.1
+        i_clamp_max: 2.0
+        i_clamp_min: -2.0
+        u_clamp_max: 3.0
+        u_clamp_min: -3.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      openarm_right_joint6:
+        p: 1.5
+        i: 2.0
+        d: 0.1
+        i_clamp_max: 2.0
+        i_clamp_min: -2.0
+        u_clamp_max: 3.0
+        u_clamp_min: -3.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
+      openarm_right_joint7:
+        p: 1.5
+        i: 2.0
+        d: 0.08
+        i_clamp_max: 2.0
+        i_clamp_min: -2.0
+        u_clamp_max: 3.0
+        u_clamp_min: -3.0
+        antiwindup_strategy: "back_calculation"
+        tracking_time_constant: 0.1
+        error_deadband: 0.002
+        save_i_term: false
