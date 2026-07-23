@@ -148,6 +148,18 @@ hardware_interface::CallbackReturn OpenArmHW::on_init(
   pub_cmds_down_ = telemetry_node_->create_publisher<sensor_msgs::msg::JointState>(
       "/openarm_hardware/" + arm_prefix_ + "commands_down", 10);
 
+  // Reference for the arm PID controller (payload / static-droop compensation).
+  // arm_prefix_ is "left_" or "right_", giving the topic names the controllers
+  // are configured under in openarm_bimanual_controllers.yaml.
+  const std::string pid_reference_topic =
+      "/" + arm_prefix_ + "arm_pid_controller/reference";
+  pub_pid_reference_ =
+      telemetry_node_->create_publisher<control_msgs::msg::MultiDOFCommand>(
+          pid_reference_topic, 10);
+  RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"),
+              "Publishing PID reference on %s (every %zu control cycles)",
+              pid_reference_topic.c_str(), PID_REFERENCE_DECIMATION);
+
   //Gravity
   auto it_urdf = info.hardware_parameters.find("urdf_path");
   if (it_urdf != info.hardware_parameters.end()) {
@@ -210,6 +222,16 @@ hardware_interface::CallbackReturn OpenArmHW::on_init(
   pos_states_.resize(total_joints, 0.0);
   vel_states_.resize(total_joints, 0.0);
   tau_states_.resize(total_joints, 0.0);
+
+  // Build the PID reference message once so write() only has to overwrite the
+  // values. Arm joints only -- the gripper is not part of that controller.
+  // values_dot stays empty: the controllers are configured with
+  // reference_and_state_interfaces = [position], so a velocity reference would
+  // be ignored and only risks a size mismatch.
+  pid_reference_msg_.dof_names.assign(joint_names_.begin(),
+                                      joint_names_.begin() + ARM_DOF);
+  pid_reference_msg_.values.assign(ARM_DOF, 0.0);
+  pid_reference_msg_.values_dot.clear();
 
   RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"),
               "OpenArm V10 Simple HW initialized successfully");
@@ -358,7 +380,43 @@ hardware_interface::return_type OpenArmHW::write(
   }
   openarm_->recv_all(100);
 
+  publish_pid_reference();
+
   return hardware_interface::return_type::OK;
+}
+
+void OpenArmHW::publish_pid_reference() {
+  // Decimate: the integral term does not need the full control rate, and this
+  // runs inside write().
+  if (++pid_reference_counter_ < PID_REFERENCE_DECIMATION) {
+    return;
+  }
+  pid_reference_counter_ = 0;
+
+  if (pub_pid_reference_ == nullptr) {                     // Rule 3: null guard
+    RCLCPP_ERROR_THROTTLE(rclcpp::get_logger("OpenArmHW"), *telemetry_node_->get_clock(),
+                          PID_REFERENCE_LOG_THROTTLE_MS,
+                          "[%s] PID reference publisher is null, not publishing",
+                          arm_prefix_.empty() ? "single" : arm_prefix_.c_str());
+    return;
+  }
+
+  if (pos_commands_.size() < ARM_DOF ||
+      pid_reference_msg_.values.size() != ARM_DOF) {       // Rule 3: size guard
+    RCLCPP_ERROR_THROTTLE(rclcpp::get_logger("OpenArmHW"), *telemetry_node_->get_clock(),
+                          PID_REFERENCE_LOG_THROTTLE_MS,
+                          "[%s] %zu commands and %zu reference slots for %zu arm joints, "
+                          "not publishing a PID reference",
+                          arm_prefix_.empty() ? "single" : arm_prefix_.c_str(),
+                          pos_commands_.size(), pid_reference_msg_.values.size(),
+                          ARM_DOF);
+    return;
+  }
+
+  for (size_t i = 0; i < ARM_DOF; ++i) {
+    pid_reference_msg_.values[i] = pos_commands_[i];
+  }
+  pub_pid_reference_->publish(pid_reference_msg_);
 }
 
 void OpenArmHW::return_to_zero() {

@@ -25,6 +25,7 @@
 #include "hardware_interface/hardware_info.hpp"
 #include "hardware_interface/system_interface.hpp"
 #include "hardware_interface/types/hardware_interface_return_values.hpp"
+#include "control_msgs/msg/multi_dof_command.hpp"
 #include "openarm_hardware/visibility_control.h"
 #include "rclcpp/macros.hpp"
 #include "rclcpp_lifecycle/state.hpp"
@@ -82,6 +83,26 @@ class OpenArmHW : public hardware_interface::SystemInterface {
   rclcpp::Node::SharedPtr telemetry_node_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr pub_states_up_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr pub_cmds_down_;
+
+  // --- Arm PID controller reference ------------------------------------------
+  // pos_commands_ is the setpoint whichever controller is currently active just
+  // wrote, so mirroring it from write() gives left/right_arm_pid_controller a
+  // reference that cannot disagree with what MIT mode is actually tracking --
+  // no separate publisher in the teleop bridge or UDP server to keep in step,
+  // and it works the same whether the arm is driven over a topic or an action.
+  //
+  // Decimated: an integral term does not need 750 Hz, and a publish on every
+  // control cycle is real work inside write(). The message is built once in
+  // on_init() so the hot path only overwrites `values`.
+  static constexpr size_t PID_REFERENCE_DECIMATION = 3;  // 750 Hz / 3 = 250 Hz
+  static constexpr int PID_REFERENCE_LOG_THROTTLE_MS = 2000;
+  size_t pid_reference_counter_ = 0;
+  control_msgs::msg::MultiDOFCommand pid_reference_msg_;
+  rclcpp::Publisher<control_msgs::msg::MultiDOFCommand>::SharedPtr pub_pid_reference_;
+
+  /// Mirrors pos_commands_ onto the arm PID controller's reference topic.
+  /// Called from write(); decimated by PID_REFERENCE_DECIMATION.
+  void publish_pid_reference();
   
   // Gravity
   std::unique_ptr<Dynamics> arm_dynamics_;
