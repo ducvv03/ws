@@ -49,10 +49,10 @@ controller_manager:
     # Its output lands in tau_commands_, which OpenArmHW::write() adds to
     # grav_torques_ and sends as the MIT frame's t_ff term.
     left_arm_pid_controller:
-      type: pid_controller/PidController
+      type: openarm_pid_controller/PidController
 
     right_arm_pid_controller:
-      type: pid_controller/PidController
+      type: openarm_pid_controller/PidController
 
 left_forward_position_controller:
   ros__parameters:
@@ -371,9 +371,9 @@ left_arm_pid_controller:
       # Pose-independent horizontal axis: carries 5.24 Nm per kg of payload in
       # every configuration, the worst of the seven.
       openarm_left_joint1:
-        p: 1.0        # ~1.4% of firmware kp = 70
+        p: 0.0        # ~1.4% of firmware kp = 70
         i: 8.0
-        d: 0.05        # ~15% of firmware kd = 2.75
+        d: 0.0        # ~15% of firmware kd = 2.75
         i_clamp_max: 10.0
         i_clamp_min: -10.0
         u_clamp_max: 13.0
@@ -385,9 +385,9 @@ left_arm_pid_controller:
       # DM8009, T_MAX 54 Nm -- 5.22 Nm per kg of payload, effectively tied
       # with joint1.
       openarm_left_joint2:
-        p: 1.0        # ~1.4% of firmware kp = 70
-        i: 8.0
-        d: 0.05      # ~14% of firmware kd = 2.5
+        p: 0.0        # ~1.4% of firmware kp = 70
+        i: 0.0
+        d: 0.0      # ~14% of firmware kd = 2.5
         i_clamp_max: 10.0
         i_clamp_min: -10.0
         u_clamp_max: 13.0
@@ -399,9 +399,9 @@ left_arm_pid_controller:
       # DM4340, T_MAX 28 Nm -- vertical axis at q = 0, but tilts with pose and
       # still reaches 3.09 Nm per kg of payload.
       openarm_left_joint3:
-        p: 1.0        # ~1.4% of firmware kp = 70
-        i: 5.0
-        d: 0.15        # ~15% of firmware kd = 2.0
+        p: 0.0        # ~1.4% of firmware kp = 70
+        i: 0.0
+        d: 0.0        # ~15% of firmware kd = 2.0
         i_clamp_max: 6.0
         i_clamp_min: -6.0
         u_clamp_max: 8.0
@@ -412,9 +412,9 @@ left_arm_pid_controller:
         save_i_term: false
       # DM4340, T_MAX 28 Nm -- elbow pitch, 3.09 Nm per kg of payload.
       openarm_left_joint4:
-        p: 1.0        # ~12% of firmware kp = 60
+        p: 0.0        # ~12% of firmware kp = 60
         i: 5.0
-        d: 0.15        # ~15% of firmware kd = 2.0
+        d: 0.0        # ~15% of firmware kd = 2.0
         i_clamp_max: 6.0
         i_clamp_min: -6.0
         u_clamp_max: 8.0
@@ -426,9 +426,9 @@ left_arm_pid_controller:
       # DM4310, T_MAX 10 Nm -- wrist, 0.98 Nm per kg of payload (joints 5-7 are
       # close to the TCP, so the payload lever arm is short).
       openarm_left_joint5:
-        p: 1.5        # ~15% of firmware kp = 10
-        i: 2.0
-        d: 0.05        # ~14% of firmware kd = 0.7
+        p: 0.0        # ~15% of firmware kp = 10
+        i: 0.0
+        d: 0.0        # ~14% of firmware kd = 0.7
         i_clamp_max: 2.0
         i_clamp_min: -2.0
         u_clamp_max: 3.0
@@ -438,9 +438,9 @@ left_arm_pid_controller:
         error_deadband: 0.002
         save_i_term: false
       openarm_left_joint6:
-        p: 1.5        # ~15% of firmware kp = 10
-        i: 2.0
-        d: 0.05        # ~17% of firmware kd = 0.6
+        p: 0.0        # ~15% of firmware kp = 10
+        i: 0.0
+        d: 0.0        # ~17% of firmware kd = 0.6
         i_clamp_max: 2.0
         i_clamp_min: -2.0
         u_clamp_max: 3.0
@@ -450,9 +450,9 @@ left_arm_pid_controller:
         error_deadband: 0.002
         save_i_term: false
       openarm_left_joint7:
-        p: 1.5        # ~15% of firmware kp = 10
+        p: 0.0        # ~15% of firmware kp = 10
         i: 2.0
-        d: 0.04       # ~16% of firmware kd = 0.5
+        d: 0.0       # ~16% of firmware kd = 0.5
         i_clamp_max: 2.0
         i_clamp_min: -2.0
         u_clamp_max: 3.0
@@ -483,9 +483,9 @@ right_arm_pid_controller:
     gains:
       # DM8009, T_MAX 54 Nm -- shoulder pitch, world axis (0, -1, 0).
       openarm_right_joint1:
-        p: 1.0
+        p: 0.0
         i: 8.0
-        d: 0.2
+        d: 0.0
         i_clamp_max: 10.0
         i_clamp_min: -10.0
         u_clamp_max: 13.0
@@ -495,9 +495,9 @@ right_arm_pid_controller:
         error_deadband: 0.002
         save_i_term: false
       openarm_right_joint2:
-        p: 1.0
-        i: 8.0
-        d: 0.175
+        p: 0.0
+        i: 0.0
+        d: 0.0
         i_clamp_max: 10.0
         i_clamp_min: -10.0
         u_clamp_max: 13.0
@@ -507,9 +507,9 @@ right_arm_pid_controller:
         error_deadband: 0.002
         save_i_term: false
       openarm_right_joint3:
-        p: 1.0
-        i: 5.0
-        d: 0.15
+        p: 0.0
+        i: 0.0
+        d: 0.0
         i_clamp_max: 6.0
         i_clamp_min: -6.0
         u_clamp_max: 8.0
@@ -519,9 +519,9 @@ right_arm_pid_controller:
         error_deadband: 0.002
         save_i_term: false
       openarm_right_joint4:
-        p: 1.0
+        p: 0.0
         i: 5.0
-        d: 0.15
+        d: 0.0
         i_clamp_max: 6.0
         i_clamp_min: -6.0
         u_clamp_max: 8.0
@@ -531,9 +531,9 @@ right_arm_pid_controller:
         error_deadband: 0.002
         save_i_term: false
       openarm_right_joint5:
-        p: 1.5
-        i: 2.0
-        d: 0.05
+        p: 0.0
+        i: 0.0
+        d: 0.0
         i_clamp_max: 2.0
         i_clamp_min: -2.0
         u_clamp_max: 3.0
@@ -543,9 +543,9 @@ right_arm_pid_controller:
         error_deadband: 0.002
         save_i_term: false
       openarm_right_joint6:
-        p: 1.5
-        i: 2.0
-        d: 0.05
+        p: 0.0
+        i: 0.0
+        d: 0.0
         i_clamp_max: 2.0
         i_clamp_min: -2.0
         u_clamp_max: 3.0
@@ -555,9 +555,9 @@ right_arm_pid_controller:
         error_deadband: 0.002
         save_i_term: false
       openarm_right_joint7:
-        p: 1.5
+        p: 0.0
         i: 2.0
-        d: 0.04
+        d: 0.0
         i_clamp_max: 2.0
         i_clamp_min: -2.0
         u_clamp_max: 3.0

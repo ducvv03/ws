@@ -15,8 +15,12 @@
 #include "openarm_hardware/openarm_simple_hardware.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <chrono>
+#include <cmath>
+#include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -28,6 +32,96 @@
 namespace openarm_hardware {
 
 OpenArmHW::OpenArmHW() = default;
+
+OpenArmHW::~OpenArmHW() {
+  // Stop the parameter spin thread before members it touches are destroyed.
+  param_spin_running_.store(false, std::memory_order_relaxed);
+  if (param_spin_thread_.joinable()) {
+    param_spin_thread_.join();
+  }
+}
+
+void OpenArmHW::setup_gain_parameters() {
+  if (telemetry_node_ == nullptr) {                        // Rule 3: null guard
+    RCLCPP_ERROR(rclcpp::get_logger("OpenArmHW"),
+                 "telemetry_node_ is null, cannot expose gain parameters");
+    return;
+  }
+
+  // Declare kp1..kp7 / kd1..kd7 seeded from the current (xacro-loaded) values,
+  // so `ros2 param get` reflects what MIT mode is actually using at startup.
+  for (size_t i = 0; i < ARM_DOF; ++i) {
+    telemetry_node_->declare_parameter("kp" + std::to_string(i + 1), kp_[i]);
+    telemetry_node_->declare_parameter("kd" + std::to_string(i + 1), kd_[i]);
+  }
+
+  // Validate-and-apply callback. Runs on the spin thread; takes gains_mutex_ so
+  // write() never reads a half-updated pair.
+  param_cb_handle_ = telemetry_node_->add_on_set_parameters_callback(
+      [this](const std::vector<rclcpp::Parameter>& params) {
+        rcl_interfaces::msg::SetParametersResult result;
+        result.successful = true;
+
+        for (const auto& param : params) {
+          const std::string& name = param.get_name();
+          const bool is_kp = name.rfind("kp", 0) == 0;
+          const bool is_kd = name.rfind("kd", 0) == 0;
+          if (!is_kp && !is_kd) {
+            continue;  // not one of ours; accept without touching gains
+          }
+
+          // Parse the 1-based joint index out of "kp<N>" / "kd<N>".
+          int joint = 0;
+          try {
+            joint = std::stoi(name.substr(2));
+          } catch (const std::exception&) {
+            continue;  // e.g. "kp_hand" -- handled elsewhere, not here
+          }
+          if (joint < 1 || joint > static_cast<int>(ARM_DOF)) {  // Rule 3: bounds
+            result.successful = false;
+            result.reason = name + ": joint index out of [1, " +
+                            std::to_string(ARM_DOF) + "]";
+            RCLCPP_WARN(rclcpp::get_logger("OpenArmHW"), "%s", result.reason.c_str());
+            return result;
+          }
+
+          const double value = param.as_double();
+          const double lo = is_kp ? KP_MIN : KD_MIN;
+          const double hi = is_kp ? KP_MAX : KD_MAX;
+          if (std::isnan(value) || value < lo || value > hi) {   // Rule 3: range
+            result.successful = false;
+            result.reason = name + ": " + std::to_string(value) + " outside [" +
+                            std::to_string(lo) + ", " + std::to_string(hi) + "]";
+            RCLCPP_WARN(rclcpp::get_logger("OpenArmHW"), "%s", result.reason.c_str());
+            return result;  // reject the whole set, change nothing
+          }
+
+          {
+            std::lock_guard<std::mutex> lock(gains_mutex_);
+            (is_kp ? kp_ : kd_)[joint - 1] = value;
+          }
+          RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"), "%s -> %.3f", name.c_str(), value);
+        }
+        return result;
+      });
+
+  // telemetry_node_ is not spun anywhere else, so without this the parameter
+  // services would never answer. One background thread services them.
+  param_spin_running_.store(true, std::memory_order_relaxed);
+  param_spin_thread_ = std::thread([this]() {
+    rclcpp::executors::SingleThreadedExecutor executor;
+    executor.add_node(telemetry_node_);
+    while (rclcpp::ok() && param_spin_running_.load(std::memory_order_relaxed)) {
+      executor.spin_some();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));  // ~100 Hz service
+    }
+  });
+
+  RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"),
+              "kp1..kp7 / kd1..kd7 exposed as ROS parameters on '%s' "
+              "(kp in [%.0f, %.0f], kd in [%.0f, %.0f])",
+              telemetry_node_->get_name(), KP_MIN, KP_MAX, KD_MIN, KD_MAX);
+}
 
 bool OpenArmHW::parse_config(const hardware_interface::HardwareInfo& info) {
   // Parse CAN interface (default: can0)
@@ -159,6 +253,11 @@ hardware_interface::CallbackReturn OpenArmHW::on_init(
   RCLCPP_INFO(rclcpp::get_logger("OpenArmHW"),
               "Publishing PID reference on %s (every %zu control cycles)",
               pid_reference_topic.c_str(), PID_REFERENCE_DECIMATION);
+
+  // Expose kp1..kp7 / kd1..kd7 as runtime-settable ROS parameters. Done here,
+  // after kp_/kd_ have been seeded from the xacro hardware_parameters, so the
+  // declared defaults match what MIT mode starts with.
+  setup_gain_parameters();
 
   //Gravity
   auto it_urdf = info.hardware_parameters.find("urdf_path");
@@ -351,6 +450,32 @@ hardware_interface::return_type OpenArmHW::write(
   //Gravity
   arm_dynamics_->GetGravity(pos_states_.data(), grav_torques_.data());
 
+  // Snapshot the gains once under the lock into the preallocated buffers, then
+  // use those -- a param-set on the spin thread cannot change kp/kd mid-loop,
+  // and the RT loop holds the lock only for an ARM_DOF-double copy.
+  {
+    std::lock_guard<std::mutex> lock(gains_mutex_);
+    for (size_t i = 0; i < ARM_DOF; ++i) {
+      kp_now_[i] = kp_[i];
+      kd_now_[i] = kd_[i];
+    }
+  }
+
+  // One throttled line, all 7 joints hardcoded (single call site => the 10 s
+  // throttle covers the whole line). kp_now_/kd_now_ is the snapshot above, so
+  // this reflects live `ros2 param set kp<N>/kd<N>` changes.
+  constexpr int GAIN_LOG_THROTTLE_MS = 10000;
+  RCLCPP_INFO_THROTTLE(
+      rclcpp::get_logger("OpenArmHW"), *telemetry_node_->get_clock(),
+      GAIN_LOG_THROTTLE_MS,
+      "[%s] j1[kp=%.2f kd=%.2f] j2[kp=%.2f kd=%.2f] j3[kp=%.2f kd=%.2f] "
+      "j4[kp=%.2f kd=%.2f] j5[kp=%.2f kd=%.2f] j6[kp=%.2f kd=%.2f] "
+      "j7[kp=%.2f kd=%.2f]",
+      arm_prefix_.empty() ? "single" : arm_prefix_.c_str(),
+      kp_now_[0], kd_now_[0], kp_now_[1], kd_now_[1], kp_now_[2], kd_now_[2],
+      kp_now_[3], kd_now_[3], kp_now_[4], kd_now_[4], kp_now_[5], kd_now_[5],
+      kp_now_[6], kd_now_[6]);
+
   std::vector<openarm::damiao_motor::MITParam> arm_params;
 
   std::vector<double> actual_tau_sent;
@@ -358,8 +483,8 @@ hardware_interface::return_type OpenArmHW::write(
   for (size_t i = 0; i < ARM_DOF; ++i) {
     double total_tau_feedforward = tau_commands_[i] + grav_torques_[i];
     arm_params.push_back({
-        kp_[i],
-        kd_[i],
+        kp_now_[i],
+        kd_now_[i],
         pos_commands_[i],
         vel_commands_[i],
         total_tau_feedforward

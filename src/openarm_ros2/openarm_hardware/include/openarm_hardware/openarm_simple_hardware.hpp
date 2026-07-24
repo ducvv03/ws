@@ -14,11 +14,14 @@
 
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include <openarm/can/socket/openarm.hpp>
 #include <openarm/damiao_motor/dm_motor_constants.hpp>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "hardware_interface/handle.hpp"
@@ -45,6 +48,7 @@ namespace openarm_hardware {
 class OpenArmHW : public hardware_interface::SystemInterface {
  public:
   OpenArmHW();
+  ~OpenArmHW() override;
 
   TEMPLATES__ROS2_CONTROL__VISIBILITY_PUBLIC
   hardware_interface::CallbackReturn on_init(
@@ -137,9 +141,40 @@ class OpenArmHW : public hardware_interface::SystemInterface {
   const uint32_t DEFAULT_GRIPPER_SEND_CAN_ID = 0x08;
   const uint32_t DEFAULT_GRIPPER_RECV_CAN_ID = 0x18;
 
-  // Gains
+  // --- MIT-mode PD gains, runtime-tunable ------------------------------------
+  // These are the kp/kd the firmware PD loop uses:
+  //     tau_motor = kp*(q_d - q) + kd*(qd_d - qd) + t_ff
+  // Seeded from the xacro hardware_parameters (kp1..kp7 / kd1..kd7) in on_init,
+  // then exposed as ROS parameters on telemetry_node_ so they can be overwritten
+  // live:
+  //     ros2 param set /openarm_hw_telemetry[_<prefix>] kp2 90.0
+  // A param-set runs on the telemetry node's spin thread; write() runs on the
+  // controller_manager RT thread. gains_mutex_ guards the handoff -- the critical
+  // section is a copy of ARM_DOF doubles, so the lock is uncontended and cheap
+  // at 750 Hz, and only ever contended for the microseconds of a param update.
   std::vector<double> kp_ = {70.0, 70.0, 70.0, 60.0, 10.0, 10.0, 10.0};
   std::vector<double> kd_ = {2.75, 2.5, 2.0, 2.0, 0.7, 0.6, 0.5};
+
+  // Damiao MIT protocol packs kp into 12 bits over [0, 500] and kd over [0, 5];
+  // values outside these ranges are rejected rather than silently clipped.
+  static constexpr double KP_MIN = 0.0;
+  static constexpr double KP_MAX = 500.0;
+  static constexpr double KD_MIN = 0.0;
+  static constexpr double KD_MAX = 5.0;
+
+  std::mutex gains_mutex_;                       // guards kp_/kd_
+  // Preallocated snapshot buffers write() copies the gains into under the lock,
+  // so the RT loop uses a stable set for the whole cycle without touching the
+  // stack each call.
+  std::array<double, ARM_DOF> kp_now_{};
+  std::array<double, ARM_DOF> kd_now_{};
+  std::thread param_spin_thread_;                // services telemetry_node_ params
+  std::atomic<bool> param_spin_running_{false};
+  rclcpp::node_interfaces::OnSetParametersCallbackHandle::SharedPtr param_cb_handle_;
+
+  /// Declares kp1..kp7 / kd1..kd7 on telemetry_node_ (seeded from kp_/kd_),
+  /// installs the validating on-set callback, and starts the spin thread.
+  void setup_gain_parameters();
 
   const double GRIPPER_JOINT_0_POSITION = 0.044;
   const double GRIPPER_JOINT_1_POSITION = 0.0;
