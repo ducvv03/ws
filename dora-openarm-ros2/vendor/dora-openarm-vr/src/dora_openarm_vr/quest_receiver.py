@@ -58,13 +58,16 @@ Meta Quest UDP pose receiver — specification
 
 import argparse
 import json
+import threading
 import time
 from pathlib import Path
 
 import dora
 import numpy as np
 import pyarrow as pa
+import rclpy
 from scipy.spatial.transform import Rotation
+from std_srvs.srv import SetBool
 
 from .smoothing import OneEuroPoseSmoother
 from .udp_receiver import JsonUdpReceiver
@@ -185,8 +188,37 @@ def _run(args: argparse.Namespace) -> None:
     prev_v_overall = VALID_OK
     prev_right_engaged = False
     prev_left_engaged = False
+    # Dead-man grip hold timer: fires once, GRIP_HOLD_SECONDS after a fresh
+    # press (rising edge); releasing the grip cancels and rearms it, so the
+    # next press starts a new 5 s window (see the main loop below).
+    GRIP_HOLD_SECONDS = 5.0
+    right_hold_start: float | None = None
+    left_hold_start: float | None = None
+    right_timer_fired = False
+    left_timer_fired = False
     last_sent_pose_right: np.ndarray | None = None
     last_sent_pose_left: np.ndarray | None = None
+    prev_right_timer_running = False
+    prev_left_timer_running = False
+
+    # ROS2 service clients (this node = client) that push the per-arm grip
+    # "safety ramp" window state to the dora-to-ros2 node (= server), which
+    # latches it into a flag. Fire-and-forget on state change; the background
+    # spin thread drains responses. Degrades to a no-op if ROS2 isn't available.
+    try:
+        rclpy.init()
+        ros_client = rclpy.create_node("vr_grip_timer_client")
+        grip_cli_right = ros_client.create_client(
+            SetBool, "/dora_bridge/set_grip_timer_right"
+        )
+        grip_cli_left = ros_client.create_client(
+            SetBool, "/dora_bridge/set_grip_timer_left"
+        )
+        threading.Thread(target=rclpy.spin, args=(ros_client,), daemon=True).start()
+        print("[receiver] grip-timer service clients ready", flush=True)
+    except Exception as exc:  # noqa: BLE001
+        grip_cli_right = grip_cli_left = None
+        print(f"[receiver] WARN: grip-timer ROS2 clients disabled ({exc})", flush=True)
 
     node = dora.Node()
     node.send_output("status", pa.array(["ready"]))
@@ -241,6 +273,50 @@ def _run(args: argparse.Namespace) -> None:
             smoother_right.reset()
         if left_rising:
             smoother_left.reset()
+
+        # Grip hold timer, one-shot per press. `now` is time.perf_counter()
+        # (monotonic), computed once per tick above.
+        if right_rising:                     # fresh press → (re)start the timer
+            right_hold_start = now
+            right_timer_fired = False
+        elif not right_engaged:              # released → cancel + rearm
+            right_hold_start = None
+            right_timer_fired = False
+        elif (not right_timer_fired
+              and right_hold_start is not None
+              and now - right_hold_start >= GRIP_HOLD_SECONDS):
+            right_timer_fired = True         # held 5 s → fire once, then off
+            print("[receiver] RIGHT grip held 5s → timer off", flush=True)
+
+        if left_rising:
+            left_hold_start = now
+            left_timer_fired = False
+        elif not left_engaged:
+            left_hold_start = None
+            left_timer_fired = False
+        elif (not left_timer_fired
+              and left_hold_start is not None
+              and now - left_hold_start >= GRIP_HOLD_SECONDS):
+            left_timer_fired = True
+            print("[receiver] LEFT grip held 5s → timer off", flush=True)
+
+        # Push the current grip window state to dora-to-ros2 (server) only when
+        # it changes. If the server isn't up yet, leave prev_* unchanged so the
+        # next tick retries once the service is ready (self-healing).
+        right_timer_running = right_hold_start is not None and not right_timer_fired
+        left_timer_running = left_hold_start is not None and not left_timer_fired
+        if grip_cli_right is not None and right_timer_running != prev_right_timer_running:
+            if grip_cli_right.service_is_ready():
+                req = SetBool.Request()
+                req.data = right_timer_running
+                grip_cli_right.call_async(req)
+                prev_right_timer_running = right_timer_running
+        if grip_cli_left is not None and left_timer_running != prev_left_timer_running:
+            if grip_cli_left.service_is_ready():
+                req = SetBool.Request()
+                req.data = left_timer_running
+                grip_cli_left.call_async(req)
+                prev_left_timer_running = left_timer_running
 
         if v_right == VALID_INVALID:
             if prev_v_right != VALID_INVALID:

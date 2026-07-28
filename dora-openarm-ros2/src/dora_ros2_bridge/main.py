@@ -68,6 +68,7 @@ from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node as RclpyNode
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Joy, JointState
+from std_srvs.srv import SetBool
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
 
@@ -163,6 +164,20 @@ class DoraRos2BridgeNode(RclpyNode):
                 10,
             )
 
+            # Grip-hold "safety ramp" flags, set by the VR receiver (client)
+            # via these SetBool services. Each request just latches its value
+            # into a plain bool the publish loop reads; served by this node's
+            # background spin thread. Default False → publish the cache
+            # straight through until the receiver says a grip window is open.
+            self.grip_timer_right = False
+            self.grip_timer_left = False
+            self.create_service(
+                SetBool, "/dora_bridge/set_grip_timer_right", self._srv_grip_right
+            )
+            self.create_service(
+                SetBool, "/dora_bridge/set_grip_timer_left", self._srv_grip_left
+            )
+
     def _left_cb(self, msg: JointTrajectoryControllerState) -> None:
         if not self.physical_state["left_ready"]:
             _log("first LEFT controller_state feedback received "
@@ -176,6 +191,16 @@ class DoraRos2BridgeNode(RclpyNode):
                  "(/right_joint_trajectory_controller/controller_state)")
         self.physical_state["right"][:] = msg.feedback.positions[:7]
         self.physical_state["right_ready"] = True
+
+    def _srv_grip_right(self, request: SetBool.Request, response: SetBool.Response):
+        self.grip_timer_right = bool(request.data)
+        response.success = True
+        return response
+
+    def _srv_grip_left(self, request: SetBool.Request, response: SetBool.Response):
+        self.grip_timer_left = bool(request.data)
+        response.success = True
+        return response
 
 
 def _spin_ros_node(node: DoraRos2BridgeNode) -> None:
@@ -515,6 +540,25 @@ def _run(args: argparse.Namespace) -> None:
             vals = value.to_numpy().astype(np.float64)
             n = min(len(vals), 8)
             left_cache[:n] = vals[:n]
+            # real mode: the left arm publishes on its OWN event now (not piggy-
+            # backed on right_position), so it tracks at its native rate. sim
+            # still merges left into /joint_command on right_position (below).
+            if args.mode == "real":
+                try:
+                    if ros_node.grip_timer_left:
+                        safe_l = get_safe_position(
+                            left_cache[:7],
+                            internal_target_l,
+                            ros_node.physical_state["left"],
+                            ros_node.physical_state["left_ready"],
+                        )
+                    else:
+                        safe_l = left_cache[:7].tolist()
+                    ros_node.p_l_arm.publish(make_joint_msg(NAMES_L_ARM, safe_l))
+                except Exception:
+                    _log(f"EXCEPTION publishing LEFT joint command on "
+                         f"left_position #{_stats['left_count']}")
+                    traceback.print_exc()
             continue
 
         if eid == "ee_pose_right":
@@ -541,21 +585,21 @@ def _run(args: argparse.Namespace) -> None:
                 msg = make_joint_command_msg(stamp, left_cache, right_cache)
                 ros_node.p_joint_cmd.publish(msg)
             else:
-                safe_r = get_safe_position(
-                    right_cache[:7],
-                    internal_target_r,
-                    ros_node.physical_state["right"],
-                    ros_node.physical_state["right_ready"],
-                )
+                # Grip window open (flag set by the VR receiver's service
+                # call) → gentle ramp via get_safe_position; otherwise publish
+                # the commanded cache straight through for full tracking. RIGHT
+                # arm only — the left arm publishes on its own left_position
+                # event now (see the left_position handler above).
+                if ros_node.grip_timer_right:
+                    safe_r = get_safe_position(
+                        right_cache[:7],
+                        internal_target_r,
+                        ros_node.physical_state["right"],
+                        ros_node.physical_state["right_ready"],
+                    )
+                else:
+                    safe_r = right_cache[:7].tolist()
                 ros_node.p_r_arm.publish(make_joint_msg(NAMES_R_ARM, safe_r))
-
-                safe_l = get_safe_position(
-                    left_cache[:7],
-                    internal_target_l,
-                    ros_node.physical_state["left"],
-                    ros_node.physical_state["left_ready"],
-                )
-                ros_node.p_l_arm.publish(make_joint_msg(NAMES_L_ARM, safe_l))
         except Exception:
             _log(f"EXCEPTION publishing joint command on right_position "
                  f"#{_stats['right_count']}")
@@ -575,7 +619,7 @@ def _run(args: argparse.Namespace) -> None:
             else:
                 _log(f"right_position #{_stats['right_count']} "
                      f"left_position #{_stats['left_count']} hz={hz:.1f} "
-                     f"published /right_..._trajectory + /left_..._trajectory "
+                     f"published /right_..._trajectory (left on its own event) "
                      f"(right_feedback_ready={ros_node.physical_state['right_ready']}, "
                      f"left_feedback_ready={ros_node.physical_state['left_ready']}), "
                      f"safe_r[:3]={[round(x, 3) for x in safe_r[:3]]}")
