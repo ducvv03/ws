@@ -34,10 +34,10 @@ docstring warning, and https://github.com/jhelovuo/ros2-client/issues/4).
 Concretely: on real hardware, `dora.Ros2Context`-based publishers logged
 "published" on every cycle, but neither `ros2 topic echo` nor the real
 `joint_trajectory_controller` ever received anything, with ROS_DOMAIN_ID and
-RMW confirmed matching on both ends — while a plain rclpy publisher/
-subscriber worked immediately. Only the Dora dataflow event loop itself
-(`dora.Node()`, receiving right_position/trigger_*/button_*/etc. from the
-ik/udp-receiver nodes) still uses the `dora` package — that's a separate,
+RMW confirmed matching on both ends — while rclpy (used here for the
+feedback subscription) worked immediately. Only the Dora dataflow event loop
+itself (`dora.Node()`, receiving right_position/trigger_*/button_*/etc. from
+the ik/udp-receiver nodes) still uses the `dora` package — that's a separate,
 unaffected mechanism from the ROS2 bridge.
 
 --mode sim (default): publishes a single merged sensor_msgs/JointState on
@@ -45,9 +45,12 @@ unaffected mechanism from the ROS2 bridge.
 
 --mode real: publishes separate trajectory_msgs/JointTrajectory per arm to
 /left_joint_trajectory_controller/joint_trajectory and
-/right_joint_trajectory_controller/joint_trajectory, applying the commanded
-target directly each cycle (same as --mode sim's /joint_command) — there is
-no ramping or physical-feedback resync.
+/right_joint_trajectory_controller/joint_trajectory. Targets are ramped
+toward (MAX_STEP per cycle) rather than applied directly, and resynced from
+the controllers' real /*_joint_trajectory_controller/controller_state
+feedback whenever they've drifted more than SYNC_THRESHOLD from what we last
+commanded — real hardware shouldn't be commanded to jump instantly to a new
+target the way simulation can be.
 """
 
 import argparse
@@ -60,6 +63,7 @@ import numpy as np
 import pyarrow as pa
 import rclpy
 from builtin_interfaces.msg import Duration, Time
+from control_msgs.msg import JointTrajectoryControllerState
 from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node as RclpyNode
 from rclpy.qos import HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -83,16 +87,17 @@ _DURATION_ZERO = Duration(sec=0, nanosec=0)
 
 
 class DoraRos2BridgeNode(RclpyNode):
-    """Owns every ROS2 publisher this bridge uses.
+    """Owns every ROS2 publisher this bridge uses, plus feedback subscriptions.
 
-    A single real rclpy node, spun in a background thread — publishing is
-    called from the main thread (the Dora event loop below), which is safe:
-    rclpy publishers don't require the calling thread to be the one spinning
-    the executor.
+    (--mode real only) the physical joint-feedback subscriptions used for the
+    safety ramp. A single real rclpy node, spun in a background thread, backs
+    both directions — publishing is called from the main thread (the Dora
+    event loop below), which is safe: rclpy publishers/subscriptions don't
+    require the calling thread to be the one spinning the executor.
     """
 
     def __init__(self, mode: str) -> None:
-        """Create all publishers for `mode`."""
+        """Create all publishers for `mode`, plus feedback subscriptions if real."""
         super().__init__("dora_to_ros2")
         self._mode = mode
 
@@ -125,6 +130,7 @@ class DoraRos2BridgeNode(RclpyNode):
         _log("hand publishers ready: /left_revo2_hand_controller/joint_trajectory, "
              "/right_revo2_hand_controller/joint_trajectory")
 
+        self.physical_state = None
         if mode == "sim":
             self.p_joint_cmd = self.create_publisher(JointState, "/joint_command", qos_arm)
             _log("mode=sim: publisher ready: /joint_command")
@@ -137,6 +143,39 @@ class DoraRos2BridgeNode(RclpyNode):
             )
             _log("mode=real: publishers ready: /left_joint_trajectory_controller/joint_trajectory, "
                  "/right_joint_trajectory_controller/joint_trajectory")
+
+            self.physical_state = {
+                "left": np.zeros(7, dtype=np.float64),
+                "right": np.zeros(7, dtype=np.float64),
+                "left_ready": False,
+                "right_ready": False,
+            }
+            self.create_subscription(
+                JointTrajectoryControllerState,
+                "/left_joint_trajectory_controller/controller_state",
+                self._left_cb,
+                10,
+            )
+            self.create_subscription(
+                JointTrajectoryControllerState,
+                "/right_joint_trajectory_controller/controller_state",
+                self._right_cb,
+                10,
+            )
+
+    def _left_cb(self, msg: JointTrajectoryControllerState) -> None:
+        if not self.physical_state["left_ready"]:
+            _log("first LEFT controller_state feedback received "
+                 "(/left_joint_trajectory_controller/controller_state)")
+        self.physical_state["left"][:] = msg.feedback.positions[:7]
+        self.physical_state["left_ready"] = True
+
+    def _right_cb(self, msg: JointTrajectoryControllerState) -> None:
+        if not self.physical_state["right_ready"]:
+            _log("first RIGHT controller_state feedback received "
+                 "(/right_joint_trajectory_controller/controller_state)")
+        self.physical_state["right"][:] = msg.feedback.positions[:7]
+        self.physical_state["right_ready"] = True
 
 
 def _spin_ros_node(node: DoraRos2BridgeNode) -> None:
@@ -156,7 +195,8 @@ def main() -> None:
         choices=["sim", "real"],
         default="sim",
         help="sim: merged JointState on /joint_command (default). real: "
-        "separate JointTrajectory per arm, applied directly each cycle.",
+        "separate JointTrajectory per arm, ramped toward target with real "
+        "physical-feedback resync for hardware safety.",
     )
     args = parser.parse_args()
     _log(f"starting: mode={args.mode}")
@@ -335,6 +375,12 @@ def _run(args: argparse.Namespace) -> None:
         NAMES_L_ARM = [f"openarm_left_joint{i + 1}" for i in range(7)]
         NAMES_R_ARM = [f"openarm_right_joint{i + 1}" for i in range(7)]
 
+        MAX_STEP = 0.02
+        SYNC_THRESHOLD = 0.1
+
+        internal_target_l = np.zeros(7, dtype=np.float64)
+        internal_target_r = np.zeros(7, dtype=np.float64)
+
         def make_joint_msg(names: list, positions: list) -> JointTrajectory:
             """Build a single-point JointTrajectory message for immediate execution."""
             msg = JointTrajectory()
@@ -349,6 +395,31 @@ def _run(args: argparse.Namespace) -> None:
             point.time_from_start = _DURATION_ZERO
             msg.points = [point]
             return msg
+
+        def get_safe_position(
+            target: np.ndarray,
+            internal_target: np.ndarray,
+            physical_pos: np.ndarray,
+            is_ready: bool,
+        ) -> list:
+            """Ramp internal_target toward target by at most MAX_STEP per call.
+
+            Resyncs internal_target to the real physical position first if it
+            has drifted more than SYNC_THRESHOLD away from it (e.g. the arm
+            was moved independently of this node), so the ramp always starts
+            from where the arm actually is rather than compounding on a stale
+            internal estimate.
+            """
+            if not is_ready:
+                return internal_target.tolist()
+
+            max_error = np.max(np.abs(internal_target - physical_pos))
+            if max_error > SYNC_THRESHOLD:
+                internal_target[:] = physical_pos
+
+            step = np.clip(target - internal_target, -MAX_STEP, MAX_STEP)
+            internal_target += step
+            return internal_target.tolist()
 
     # --- 4. Dora Loop ---
     dora_node = dora.Node()
@@ -372,7 +443,7 @@ def _run(args: argparse.Namespace) -> None:
     # at all) apart from "events arrive but publishing raises" (heartbeat
     # never reached because the try/except below logs and stops first) apart
     # from "publishing normally, arm just isn't moving for some other reason"
-    # (heartbeat keeps appearing with changing right_arm values).
+    # (heartbeat keeps appearing with changing right_arm/safe_r values).
     LOG_EVERY = 200
     _stats = {"right_count": 0, "left_count": 0, "t0": time.time()}
 
@@ -470,8 +541,21 @@ def _run(args: argparse.Namespace) -> None:
                 msg = make_joint_command_msg(stamp, left_cache, right_cache)
                 ros_node.p_joint_cmd.publish(msg)
             else:
-                ros_node.p_r_arm.publish(make_joint_msg(NAMES_R_ARM, right_cache[:7].tolist()))
-                ros_node.p_l_arm.publish(make_joint_msg(NAMES_L_ARM, left_cache[:7].tolist()))
+                safe_r = get_safe_position(
+                    right_cache[:7],
+                    internal_target_r,
+                    ros_node.physical_state["right"],
+                    ros_node.physical_state["right_ready"],
+                )
+                ros_node.p_r_arm.publish(make_joint_msg(NAMES_R_ARM, safe_r))
+
+                safe_l = get_safe_position(
+                    left_cache[:7],
+                    internal_target_l,
+                    ros_node.physical_state["left"],
+                    ros_node.physical_state["left_ready"],
+                )
+                ros_node.p_l_arm.publish(make_joint_msg(NAMES_L_ARM, safe_l))
         except Exception:
             _log(f"EXCEPTION publishing joint command on right_position "
                  f"#{_stats['right_count']}")
@@ -491,8 +575,10 @@ def _run(args: argparse.Namespace) -> None:
             else:
                 _log(f"right_position #{_stats['right_count']} "
                      f"left_position #{_stats['left_count']} hz={hz:.1f} "
-                     f"published /right_..._trajectory + /left_..._trajectory, "
-                     f"right_arm[:3]={np.round(right_cache[:3], 3).tolist()}")
+                     f"published /right_..._trajectory + /left_..._trajectory "
+                     f"(right_feedback_ready={ros_node.physical_state['right_ready']}, "
+                     f"left_feedback_ready={ros_node.physical_state['left_ready']}), "
+                     f"safe_r[:3]={[round(x, 3) for x in safe_r[:3]]}")
 
 
 if __name__ == "__main__":
