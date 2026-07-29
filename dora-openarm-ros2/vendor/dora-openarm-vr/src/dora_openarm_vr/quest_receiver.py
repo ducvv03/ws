@@ -187,9 +187,9 @@ def _run(args: argparse.Namespace) -> None:
     prev_v_overall = VALID_OK
     prev_right_engaged = False
     prev_left_engaged = False
-    # Dead-man grip hold timer: fires once, GRIP_HOLD_SECONDS after a fresh
-    # press (rising edge); releasing the grip cancels and rearms it, so the
-    # next press starts a new 5 s window (see the main loop below).
+    # Grip hold timer: fires once, GRIP_HOLD_SECONDS after a fresh press
+    # (rising edge). Releasing the grip does NOT cancel it — the window always
+    # runs its full duration; only a fresh press restarts it (see main loop).
     GRIP_HOLD_SECONDS = 5.0
     right_hold_start: float | None = None
     left_hold_start: float | None = None
@@ -291,13 +291,14 @@ def _run(args: argparse.Namespace) -> None:
             smoother_left.reset()
 
         # Grip hold timer, one-shot per press. `now` is time.perf_counter()
-        # (monotonic), computed once per tick above.
+        # (monotonic), computed once per tick above. Releasing the grip does
+        # NOT stop it: once a press starts the window it always runs the full
+        # GRIP_HOLD_SECONDS and then self-disables. A fresh press (rising edge)
+        # restarts it.
         if right_rising:                     # fresh press → (re)start the timer
             right_hold_start = now
             right_timer_fired = False
-        elif not right_engaged:              # released → cancel + rearm
-            right_hold_start = None
-            right_timer_fired = False
+            print("[receiver] RIGHT grip → timer START (5s)", flush=True)
         elif (not right_timer_fired
               and right_hold_start is not None
               and now - right_hold_start >= GRIP_HOLD_SECONDS):
@@ -307,9 +308,7 @@ def _run(args: argparse.Namespace) -> None:
         if left_rising:
             left_hold_start = now
             left_timer_fired = False
-        elif not left_engaged:
-            left_hold_start = None
-            left_timer_fired = False
+            print("[receiver] LEFT grip → timer START (5s)", flush=True)
         elif (not left_timer_fired
               and left_hold_start is not None
               and now - left_hold_start >= GRIP_HOLD_SECONDS):
