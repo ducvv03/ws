@@ -1,0 +1,11 @@
+[dora-to-ros2] starting: mode=real
+[dora-to-ros2] common publishers ready: /vr_buttons, /right_ee_pose, /left_ee_pose
+[dora-to-ros2] hand publishers ready: /left_revo2_hand_controller/joint_trajectory, /right_revo2_hand_controller/joint_trajectory
+[dora-to-ros2] mode=real: publishers ready: /left_joint_trajectory_controller/joint_trajectory, /right_joint_trajectory_controller/joint_trajectory
+[dora-to-ros2] ROS2 node created (dora_to_ros2)
+[dora-to-ros2] ROS2 spin thread started
+{"timestamp":"2026-07-23T07:50:31.903587Z","level":"INFO","fields":{"message":"","name":"MeterProvider.GlobalSet","message":"Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope()."},"target":"opentelemetry"}
+[dora-to-ros2] first LEFT controller_state feedback received (/left_joint_trajectory_controller/controller_state)
+[dora-to-ros2] event loop starting (waiting for Dora INPUT events)
+[dora-to-ros2] first RIGHT controller_state feedback received (/right_joint_trajectory_controller/controller_state)
+terminate called without an active exception

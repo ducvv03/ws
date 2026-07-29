@@ -1,0 +1,41 @@
+[dora-to-ros2] starting: mode=real
+[dora-to-ros2] common publishers ready: /vr_buttons, /right_ee_pose, /left_ee_pose
+[dora-to-ros2] hand publishers ready: /left_revo2_hand_controller/joint_trajectory, /right_revo2_hand_controller/joint_trajectory
+[dora-to-ros2] mode=real: publishers ready: /left_joint_trajectory_controller/joint_trajectory, /right_joint_trajectory_controller/joint_trajectory
+[dora-to-ros2] ROS2 node created (dora_to_ros2)
+[dora-to-ros2] ROS2 spin thread started
+{"timestamp":"2026-07-23T07:51:06.910061Z","level":"INFO","fields":{"message":"","name":"MeterProvider.GlobalSet","message":"Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope()."},"target":"opentelemetry"}
+[dora-to-ros2] first LEFT controller_state feedback received (/left_joint_trajectory_controller/controller_state)
+[dora-to-ros2] first RIGHT controller_state feedback received (/right_joint_trajectory_controller/controller_state)
+[dora-to-ros2] event loop starting (waiting for Dora INPUT events)
+[dora-to-ros2] right_position #200 left_position #197 hz=28.6 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, 0.065, -0.451]
+[dora-to-ros2] right_position #400 left_position #396 hz=473.1 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #600 left_position #596 hz=479.0 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #800 left_position #795 hz=489.4 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #1000 left_position #995 hz=492.9 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #1200 left_position #1192 hz=462.6 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #1400 left_position #1389 hz=473.0 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #1600 left_position #1586 hz=439.7 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #1800 left_position #1785 hz=483.8 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #2000 left_position #1984 hz=446.2 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #2200 left_position #2184 hz=487.3 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #2400 left_position #2383 hz=406.9 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #2600 left_position #2582 hz=468.4 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #2800 left_position #2782 hz=495.8 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #3000 left_position #2982 hz=471.5 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #3200 left_position #3181 hz=467.0 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #3400 left_position #3378 hz=476.8 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #3600 left_position #3577 hz=461.0 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #3800 left_position #3775 hz=491.9 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #4000 left_position #3973 hz=466.2 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #4200 left_position #4172 hz=483.7 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #4400 left_position #4370 hz=496.4 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #4600 left_position #4570 hz=494.3 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #4800 left_position #4769 hz=453.8 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #5000 left_position #4965 hz=466.7 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #5200 left_position #5163 hz=406.2 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #5400 left_position #5358 hz=475.8 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #5600 left_position #5558 hz=474.8 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #5800 left_position #5758 hz=491.8 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+[dora-to-ros2] right_position #6000 left_position #5958 hz=427.8 published /right_..._trajectory + /left_..._trajectory (right_feedback_ready=True, left_feedback_ready=True), safe_r[:3]=[0.459, -0.0, -0.339]
+terminate called without an active exception

@@ -171,11 +171,19 @@ class DoraRos2BridgeNode(RclpyNode):
             # straight through until the receiver says a grip window is open.
             self.grip_timer_right = False
             self.grip_timer_left = False
+            self.grip_engaged_right = False
+            self.grip_engaged_left = False
             self.create_service(
                 SetBool, "/dora_bridge/set_grip_timer_right", self._srv_grip_right
             )
             self.create_service(
                 SetBool, "/dora_bridge/set_grip_timer_left", self._srv_grip_left
+            )
+            self.create_service(
+                SetBool, "/dora_bridge/set_grip_engaged_right", self._srv_engaged_right
+            )
+            self.create_service(
+                SetBool, "/dora_bridge/set_grip_engaged_left", self._srv_engaged_left
             )
 
     def _left_cb(self, msg: JointTrajectoryControllerState) -> None:
@@ -199,6 +207,16 @@ class DoraRos2BridgeNode(RclpyNode):
 
     def _srv_grip_left(self, request: SetBool.Request, response: SetBool.Response):
         self.grip_timer_left = bool(request.data)
+        response.success = True
+        return response
+
+    def _srv_engaged_right(self, request: SetBool.Request, response: SetBool.Response):
+        self.grip_engaged_right = bool(request.data)
+        response.success = True
+        return response
+
+    def _srv_engaged_left(self, request: SetBool.Request, response: SetBool.Response):
+        self.grip_engaged_left = bool(request.data)
         response.success = True
         return response
 
@@ -406,6 +424,12 @@ def _run(args: argparse.Namespace) -> None:
         internal_target_l = np.zeros(7, dtype=np.float64)
         internal_target_r = np.zeros(7, dtype=np.float64)
 
+        # Latched freeze target per arm: when the grip is released, the arm is
+        # pinned at the physical position captured at that instant (None while
+        # gripping). See the grip_engaged branch in the publish handlers.
+        hold_l = None
+        hold_r = None
+
         def make_joint_msg(names: list, positions: list) -> JointTrajectory:
             """Build a single-point JointTrajectory message for immediate execution."""
             msg = JointTrajectory()
@@ -545,7 +569,19 @@ def _run(args: argparse.Namespace) -> None:
             # still merges left into /joint_command on right_position (below).
             if args.mode == "real":
                 try:
-                    if ros_node.grip_timer_left:
+                    if not ros_node.grip_engaged_left:
+                        # grip released → freeze at the physical position.
+                        if hold_l is None:
+                            if ros_node.physical_state["left_ready"]:
+                                hold_l = np.array(
+                                    ros_node.physical_state["left"], dtype=np.float64
+                                )
+                            else:
+                                hold_l = np.array(left_cache[:7], dtype=np.float64)
+                            internal_target_l[:] = hold_l
+                        safe_l = hold_l.tolist()
+                    elif ros_node.grip_timer_left:
+                        hold_l = None
                         safe_l = get_safe_position(
                             left_cache[:7],
                             internal_target_l,
@@ -553,6 +589,7 @@ def _run(args: argparse.Namespace) -> None:
                             ros_node.physical_state["left_ready"],
                         )
                     else:
+                        hold_l = None
                         safe_l = left_cache[:7].tolist()
                     ros_node.p_l_arm.publish(make_joint_msg(NAMES_L_ARM, safe_l))
                 except Exception:
@@ -590,7 +627,21 @@ def _run(args: argparse.Namespace) -> None:
                 # the commanded cache straight through for full tracking. RIGHT
                 # arm only — the left arm publishes on its own left_position
                 # event now (see the left_position handler above).
-                if ros_node.grip_timer_right:
+                if not ros_node.grip_engaged_right:
+                    # grip released → freeze: latch the physical position at
+                    # release and hold it, so the arm stops right where it is
+                    # instead of finishing the ramp toward the last target.
+                    if hold_r is None:
+                        if ros_node.physical_state["right_ready"]:
+                            hold_r = np.array(
+                                ros_node.physical_state["right"], dtype=np.float64
+                            )
+                        else:
+                            hold_r = np.array(right_cache[:7], dtype=np.float64)
+                        internal_target_r[:] = hold_r
+                    safe_r = hold_r.tolist()
+                elif ros_node.grip_timer_right:
+                    hold_r = None
                     safe_r = get_safe_position(
                         right_cache[:7],
                         internal_target_r,
@@ -598,6 +649,7 @@ def _run(args: argparse.Namespace) -> None:
                         ros_node.physical_state["right_ready"],
                     )
                 else:
+                    hold_r = None
                     safe_r = right_cache[:7].tolist()
                 ros_node.p_r_arm.publish(make_joint_msg(NAMES_R_ARM, safe_r))
         except Exception:

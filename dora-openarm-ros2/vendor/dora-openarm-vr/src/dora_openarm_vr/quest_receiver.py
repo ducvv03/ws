@@ -199,6 +199,8 @@ def _run(args: argparse.Namespace) -> None:
     last_sent_pose_left: np.ndarray | None = None
     prev_right_timer_running = False
     prev_left_timer_running = False
+    prev_right_engaged_sent = False
+    prev_left_engaged_sent = False
 
     # ROS2 service clients (this node = client) that push the per-arm grip
     # "safety ramp" window state to the dora-to-ros2 node (= server), which
@@ -213,11 +215,18 @@ def _run(args: argparse.Namespace) -> None:
         grip_cli_left = ros_client.create_client(
             SetBool, "/dora_bridge/set_grip_timer_left"
         )
-        print("[receiver] grip-timer service clients ready", flush=True)
+        eng_cli_right = ros_client.create_client(
+            SetBool, "/dora_bridge/set_grip_engaged_right"
+        )
+        eng_cli_left = ros_client.create_client(
+            SetBool, "/dora_bridge/set_grip_engaged_left"
+        )
+        print("[receiver] grip timer/engaged service clients ready", flush=True)
     except Exception as exc:  # noqa: BLE001
         ros_client = None
         grip_cli_right = grip_cli_left = None
-        print(f"[receiver] WARN: grip-timer ROS2 clients disabled ({exc})", flush=True)
+        eng_cli_right = eng_cli_left = None
+        print(f"[receiver] WARN: grip ROS2 clients disabled ({exc})", flush=True)
 
     def _sync_flag(cli, value: bool) -> bool:
         """Send `value` to a SetBool server and block until it acks.
@@ -323,6 +332,15 @@ def _run(args: argparse.Namespace) -> None:
         # so the next tick retries (self-healing).
         right_timer_running = right_hold_start is not None and not right_timer_fired
         left_timer_running = left_hold_start is not None and not left_timer_fired
+        # Send engaged BEFORE timer so a rising edge sets engaged=True in the
+        # bridge before timer=True (never a transient timer-on + released =
+        # freeze); on release, engaged flips to False while timer stays on.
+        if right_engaged != prev_right_engaged_sent:
+            if _sync_flag(eng_cli_right, right_engaged):
+                prev_right_engaged_sent = right_engaged
+        if left_engaged != prev_left_engaged_sent:
+            if _sync_flag(eng_cli_left, left_engaged):
+                prev_left_engaged_sent = left_engaged
         if right_timer_running != prev_right_timer_running:
             if _sync_flag(grip_cli_right, right_timer_running):
                 prev_right_timer_running = right_timer_running

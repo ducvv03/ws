@@ -1,0 +1,4 @@
+/home/tan/work/ws_2/ws/dora-openarm-ros2/src/dora_ros2_bridge/main.py:104: UserWarning: dora-rs ROS2 Bridge is unstable and may change at any point without it being considered a breaking change
+  context = dora.Ros2Context()
+{"timestamp":"2026-07-17T06:22:45.836268Z","level":"INFO","fields":{"message":"","name":"MeterProvider.GlobalSet","message":"Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope()."},"target":"opentelemetry"}
+terminate called without an active exception
