@@ -58,7 +58,6 @@ Meta Quest UDP pose receiver — specification
 
 import argparse
 import json
-import threading
 import time
 from pathlib import Path
 
@@ -203,8 +202,8 @@ def _run(args: argparse.Namespace) -> None:
 
     # ROS2 service clients (this node = client) that push the per-arm grip
     # "safety ramp" window state to the dora-to-ros2 node (= server), which
-    # latches it into a flag. Fire-and-forget on state change; the background
-    # spin thread drains responses. Degrades to a no-op if ROS2 isn't available.
+    # latches it into a flag. Degrades to a no-op if ROS2 isn't available.
+    ros_client = None
     try:
         rclpy.init()
         ros_client = rclpy.create_node("vr_grip_timer_client")
@@ -214,11 +213,28 @@ def _run(args: argparse.Namespace) -> None:
         grip_cli_left = ros_client.create_client(
             SetBool, "/dora_bridge/set_grip_timer_left"
         )
-        threading.Thread(target=rclpy.spin, args=(ros_client,), daemon=True).start()
         print("[receiver] grip-timer service clients ready", flush=True)
     except Exception as exc:  # noqa: BLE001
+        ros_client = None
         grip_cli_right = grip_cli_left = None
         print(f"[receiver] WARN: grip-timer ROS2 clients disabled ({exc})", flush=True)
+
+    def _sync_flag(cli, value: bool) -> bool:
+        """Send `value` to a SetBool server and block until it acks.
+
+        No background executor spins this client, so the call is driven
+        synchronously here (single-threaded → no rclpy thread-safety issue).
+        Only invoked on grip state change, so the brief round-trip block is
+        cheap. Returns True only if the server acknowledged within the timeout;
+        on a miss the caller keeps prev_* unchanged and retries next tick.
+        """
+        if cli is None or not cli.service_is_ready():
+            return False
+        req = SetBool.Request()
+        req.data = value
+        fut = cli.call_async(req)
+        rclpy.spin_until_future_complete(ros_client, fut, timeout_sec=0.1)
+        return fut.done()
 
     node = dora.Node()
     node.send_output("status", pa.array(["ready"]))
@@ -301,21 +317,18 @@ def _run(args: argparse.Namespace) -> None:
             print("[receiver] LEFT grip held 5s → timer off", flush=True)
 
         # Push the current grip window state to dora-to-ros2 (server) only when
-        # it changes. If the server isn't up yet, leave prev_* unchanged so the
-        # next tick retries once the service is ready (self-healing).
+        # it changes, and BLOCK until the server acks before moving on to emit
+        # the (possibly jumped) pose below — this guarantees the bridge has the
+        # ramp flag set before the new pose reaches it, killing the re-engage
+        # race. If the server isn't up / doesn't ack, prev_* is left unchanged
+        # so the next tick retries (self-healing).
         right_timer_running = right_hold_start is not None and not right_timer_fired
         left_timer_running = left_hold_start is not None and not left_timer_fired
-        if grip_cli_right is not None and right_timer_running != prev_right_timer_running:
-            if grip_cli_right.service_is_ready():
-                req = SetBool.Request()
-                req.data = right_timer_running
-                grip_cli_right.call_async(req)
+        if right_timer_running != prev_right_timer_running:
+            if _sync_flag(grip_cli_right, right_timer_running):
                 prev_right_timer_running = right_timer_running
-        if grip_cli_left is not None and left_timer_running != prev_left_timer_running:
-            if grip_cli_left.service_is_ready():
-                req = SetBool.Request()
-                req.data = left_timer_running
-                grip_cli_left.call_async(req)
+        if left_timer_running != prev_left_timer_running:
+            if _sync_flag(grip_cli_left, left_timer_running):
                 prev_left_timer_running = left_timer_running
 
         if v_right == VALID_INVALID:
