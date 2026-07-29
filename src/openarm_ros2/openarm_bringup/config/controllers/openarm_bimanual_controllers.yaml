@@ -558,7 +558,7 @@ right_arm_pid_controller:
         p: 0.0
         i: 0.0
         d: 0.0
-l        i_clamp_max: 2.0
+        i_clamp_max: 2.0
         i_clamp_min: -2.0
         u_clamp_max: 3.0
         u_clamp_min: -3.0
