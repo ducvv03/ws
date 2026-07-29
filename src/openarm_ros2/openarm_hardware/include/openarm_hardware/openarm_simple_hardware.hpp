@@ -152,7 +152,7 @@ class OpenArmHW : public hardware_interface::SystemInterface {
   // controller_manager RT thread. gains_mutex_ guards the handoff -- the critical
   // section is a copy of ARM_DOF doubles, so the lock is uncontended and cheap
   // at 750 Hz, and only ever contended for the microseconds of a param update.
-  std::vector<double> kp_ = {70.0, 70.0, 70.0, 60.0, 10.0, 10.0, 10.0};
+  std::vector<double> kp_ = {120.0, 70.0, 70.0, 60.0, 10.0, 10.0, 10.0};
   std::vector<double> kd_ = {2.75, 2.5, 2.0, 2.0, 0.7, 0.6, 0.5};
 
   // Damiao MIT protocol packs kp into 12 bits over [0, 500] and kd over [0, 5];
