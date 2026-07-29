@@ -1,0 +1,61 @@
+# Topic mapping for bag_to_lerobot.py — SIMULATION bags.
+#
+# `mode: sim` selects the extraction logic for two flat sensor_msgs/msg/JointState topics: one
+# for the achieved state (-> observation.state), one for the commanded target (-> action).
+# NOTE: this is deliberately state=/joint_states, action=/joint_command — NOT the same topic for
+# both. The live OpenArmRevo2Follower/-Leader classes currently default *both* to /joint_command
+# (a known, still-unfixed label-leakage bug noted in .claude/rules/openarm-revo2-hardware.md) —
+# this converter intentionally does NOT replicate that bug.
+#
+# `joint_names` is the canonical 26-joint order, identical to the flattened order across
+# topics_real.yaml's joint_groups, so sim- and real-derived datasets share one schema. Any joint
+# published on /joint_states or /joint_command outside this list (if any) is ignored.
+mode: sim
+
+joint_state_topic: /joint_states
+joint_action_topic: /joint_command
+
+joint_names:
+  - openarm_left_joint1
+  - openarm_left_joint2
+  - openarm_left_joint3
+  - openarm_left_joint4
+  - openarm_left_joint5
+  - openarm_left_joint6
+  - openarm_left_joint7
+  - openarm_right_joint1
+  - openarm_right_joint2
+  - openarm_right_joint3
+  - openarm_right_joint4
+  - openarm_right_joint5
+  - openarm_right_joint6
+  - openarm_right_joint7
+  - left_thumb_metacarpal_joint
+  - left_thumb_proximal_joint
+  - left_index_proximal_joint
+  - left_middle_proximal_joint
+  - left_ring_proximal_joint
+  - left_pinky_proximal_joint
+  - right_thumb_metacarpal_joint
+  - right_thumb_proximal_joint
+  - right_index_proximal_joint
+  - right_middle_proximal_joint
+  - right_ring_proximal_joint
+  - right_pinky_proximal_joint
+
+camera_topics:
+  cam_head: /cam_head/cam_head/color/image_raw
+  cam_left: /cam_left/cam_left/color/image_raw
+  cam_right: /cam_right/cam_right/color/image_raw
+
+tf_base_frame: openarm_body_link0
+left_tcp_frame: openarm_revo2_left_world
+right_tcp_frame: world
+
+# VR-commanded end-effector pose (geometry_msgs/msg/PoseStamped or Pose) -> action, as
+# <side>_ee_pose.{x,y,z,qx,qy,qz,qw}. Distinct signal from the tcp pose above (target vs
+# achieved), same command-vs-achieved split as joints (/joint_command -> action,
+# /joint_states -> observation.state).
+ee_pose_topics:
+  left: /left_ee_pose
+  right: /right_ee_pose

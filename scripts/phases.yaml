@@ -1,0 +1,32 @@
+# Button -> phase/task mapping for bag_split_episodes.py.
+#
+# episode_start_button: button that marks the start of a new episode (e.g. "robot moves to
+# position A"). Optional — omit/remove this key if there's no separate episode-start marker
+# and the first phase's start_button doubles as the episode boundary.
+#
+# phases: ordered list, one entry per segment to extract, in the order they occur within an
+# episode. Each entry:
+#   name:         short phase id, written to segments.json's "phase" field
+#   start_button: button whose rising edge marks t_start for this phase
+#   end_button:   button whose rising edge marks t_end for this phase
+#   task:         natural-language task string written to segments.json's "task" field
+#
+# If one phase's end_button is the same button as the next phase's start_button (e.g. "b" both
+# ends "pick" and starts "hold" in the same press), the next phase's t_start is set to that same
+# timestamp automatically — no separate press is required. If they differ, the script waits for
+# a fresh press of the next phase's start_button.
+episode_start_button: a
+
+phases:
+  - name: pick
+    start_button: x
+    end_button: b
+    task: "pick up the box"
+  - name: hold
+    start_button: b
+    end_button: y
+    task: "carry the box to the drop-off location"
+  - name: place
+    start_button: y
+    end_button: b
+    task: "place the box down"

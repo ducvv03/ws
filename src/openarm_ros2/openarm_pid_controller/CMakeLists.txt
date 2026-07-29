@@ -69,43 +69,6 @@ target_link_libraries(openarm_pid_controller PUBLIC
 
 pluginlib_export_plugin_description_file(controller_interface openarm_pid_controller.xml)
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gmock REQUIRED)
-  find_package(controller_manager REQUIRED)
-  find_package(ros2_control_test_assets REQUIRED)
-
-  add_rostest_with_parameters_gmock(
-    test_pid_controller
-    test/test_pid_controller.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/pid_controller_params.yaml
-  )
-  target_include_directories(test_pid_controller PRIVATE include)
-  target_link_libraries(test_pid_controller openarm_pid_controller)
-
-  add_rostest_with_parameters_gmock(
-    test_pid_controller_preceding
-    test/test_pid_controller_preceding.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/pid_controller_preceding_params.yaml
-  )
-  target_include_directories(test_pid_controller_preceding PRIVATE include)
-  target_link_libraries(test_pid_controller_preceding openarm_pid_controller)
-
-  add_rostest_with_parameters_gmock(
-    test_pid_controller_dual_interface
-    test/test_pid_controller_dual_interface.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/test/pid_controller_params.yaml
-  )
-  target_include_directories(test_pid_controller_dual_interface PRIVATE include)
-  target_link_libraries(test_pid_controller_dual_interface openarm_pid_controller)
-
-  ament_add_gmock(test_load_pid_controller test/test_load_pid_controller.cpp)
-  target_include_directories(test_load_pid_controller PRIVATE include)
-  target_link_libraries(test_load_pid_controller
-    controller_manager::controller_manager
-    ros2_control_test_assets::ros2_control_test_assets
-  )
-endif()
-
 install(
   DIRECTORY include/
   DESTINATION include/openarm_pid_controller

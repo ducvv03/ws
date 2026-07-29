@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Rosbag → LeRobot pipeline</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.3rem; }
+  .tabs { display: flex; gap: 0.5rem; border-bottom: 2px solid #ddd; margin-bottom: 1.5rem; }
+  .tab-btn { padding: 0.6rem 1.2rem; border: none; background: none; cursor: pointer; font-size: 1rem; color: #666; border-bottom: 3px solid transparent; }
+  .tab-btn.active { color: #111; border-bottom-color: #2563eb; font-weight: 600; }
+  .tab { display: none; }
+  .tab.active { display: block; }
+  label { display: block; margin: 1rem 0 0.3rem; font-weight: 600; font-size: 0.9rem; }
+  input[type=text], textarea, input[type=number] { width: 100%; padding: 0.5rem; box-sizing: border-box; font-size: 0.95rem; border: 1px solid #ccc; border-radius: 4px; }
+  textarea { min-height: 5rem; font-family: monospace; }
+  .radio-row { display: flex; gap: 1.5rem; margin-top: 0.3rem; }
+  .radio-row label { font-weight: normal; display: flex; align-items: center; gap: 0.4rem; margin: 0; }
+  button.action { margin-top: 1.2rem; padding: 0.6rem 1.4rem; font-size: 1rem; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; }
+  button.action:disabled { background: #93b4ec; cursor: wait; }
+  pre.log { background: #111; color: #d4d4d4; padding: 1rem; border-radius: 4px; margin-top: 1rem; max-height: 400px; overflow: auto; white-space: pre-wrap; font-size: 0.8rem; }
+  .status-ok { color: #16a34a; font-weight: 600; }
+  .status-fail { color: #dc2626; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  th, td { text-align: left; padding: 0.4rem 0.6rem; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+  th { background: #f5f5f5; }
+  .hint { color: #888; font-size: 0.85rem; margin-top: 0.2rem; }
+</style>
+</head>
+<body>
+<h1>Rosbag → LeRobot pipeline</h1>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="convert">1. Convert bag → LeRobot</button>
+  <button class="tab-btn" data-tab="check">2. Check episode durations</button>
+</div>
+
+<div id="tab-convert" class="tab active">
+  <label for="bag-path">Đường dẫn rosbag</label>
+  <input type="text" id="bag-path" placeholder="/home/ws/pnk/ws/bags/take_box_sim_20260721_135356">
+  <div class="hint">Thư mục chứa file .mcap hoặc .db3 của bag.</div>
+
+  <label>Loại bag</label>
+  <div class="radio-row">
+    <label><input type="radio" name="mode" value="sim" checked> Sim</label>
+    <label><input type="radio" name="mode" value="real"> Real</label>
+  </div>
+
+  <button class="action" id="convert-btn">Convert</button>
+  <div id="convert-status"></div>
+  <pre class="log" id="convert-log" style="display:none;"></pre>
+</div>
+
+<div id="tab-check" class="tab">
+  <label for="dataset-paths">Đường dẫn dataset LeRobot đã convert (mỗi dòng 1 path, hỗ trợ glob)</label>
+  <textarea id="dataset-paths" placeholder="/home/ws/pnk/ws/bags/*_lerobot"></textarea>
+
+  <label for="min-seconds">Ngắn hơn (giây) thì bị nghi ngờ</label>
+  <input type="number" id="min-seconds" value="30">
+
+  <label for="max-seconds">Dài hơn (giây) thì bị nghi ngờ</label>
+  <input type="number" id="max-seconds" value="180">
+
+  <button class="action" id="check-btn">Bắt đầu check</button>
+  <div id="check-status"></div>
+  <div id="check-results"></div>
+
+  <label for="delete-episode-ids">Episode ID cần xóa (cách nhau bởi dấu phẩy — áp dụng cho dataset đã quét, chỉ dùng được khi quét đúng 1 dataset)</label>
+  <input type="text" id="delete-episode-ids" placeholder="0, 3, 7">
+  <button class="action" id="delete-btn" style="background:#dc2626;">Xóa các episode đã điền</button>
+  <div id="delete-status"></div>
+</div>
+
+<script>
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+  });
+});
+
+async function postJSON(url, body) {
+  const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return res.json();
+}
+
+document.getElementById("convert-btn").addEventListener("click", async () => {
+  const bagPath = document.getElementById("bag-path").value.trim();
+  const mode = document.querySelector('input[name="mode"]:checked').value;
+  const statusEl = document.getElementById("convert-status");
+  const logEl = document.getElementById("convert-log");
+  const btn = document.getElementById("convert-btn");
+
+  if (!bagPath) { statusEl.innerHTML = '<span class="status-fail">Chưa nhập đường dẫn bag.</span>'; return; }
+
+  btn.disabled = true;
+  statusEl.innerHTML = "Đang chạy bag_split_episodes.py rồi bag_to_lerobot.py... (có thể mất vài phút do encode video)";
+  logEl.style.display = "none";
+
+  try {
+    const result = await postJSON("/api/convert", { bag_path: bagPath, mode });
+    statusEl.innerHTML = result.ok
+      ? '<span class="status-ok">Convert thành công.</span>'
+      : `<span class="status-fail">Thất bại: ${result.error || "xem log bên dưới"}</span>`;
+
+    let log = "";
+    if (result.storage_id) log += `storage_id (tự nhận diện): ${result.storage_id}\n\n`;
+    if (result.split) log += `=== bag_split_episodes.py ===\n${result.split.stdout}\n${result.split.stderr}\n`;
+    if (result.convert) log += `\n=== bag_to_lerobot.py ===\n${result.convert.stdout}\n${result.convert.stderr}\n`;
+    if (!result.split && !result.convert && result.error) log += result.error;
+    logEl.textContent = log;
+    logEl.style.display = "block";
+  } catch (e) {
+    statusEl.innerHTML = `<span class="status-fail">Lỗi: ${e}</span>`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+let lastCheckResult = null;
+
+document.getElementById("check-btn").addEventListener("click", async () => {
+  const paths = document.getElementById("dataset-paths").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const minSeconds = parseFloat(document.getElementById("min-seconds").value);
+  const maxSeconds = parseFloat(document.getElementById("max-seconds").value);
+  const statusEl = document.getElementById("check-status");
+  const resultsEl = document.getElementById("check-results");
+  const btn = document.getElementById("check-btn");
+
+  if (paths.length === 0) { statusEl.innerHTML = '<span class="status-fail">Chưa nhập đường dẫn dataset.</span>'; return; }
+
+  btn.disabled = true;
+  statusEl.innerHTML = "Đang check...";
+  resultsEl.innerHTML = "";
+
+  try {
+    const result = await postJSON("/api/check", { dataset_paths: paths, min_seconds: minSeconds, max_seconds: maxSeconds });
+    if (!result.ok && result.error) {
+      statusEl.innerHTML = `<span class="status-fail">${result.error}</span>`;
+      return;
+    }
+    lastCheckResult = result;
+    statusEl.innerHTML = `Đã quét ${result.datasets_scanned.length} dataset — <b>${result.flagged.length}</b> episode đáng nghi.`;
+
+    if (result.flagged.length > 0) {
+      let html = "<table><tr><th>Dataset</th><th>Episode</th><th>Thời lượng (s)</th><th>Lý do</th></tr>";
+      for (const f of result.flagged) {
+        html += `<tr><td>${f.dataset}</td><td>${f.episode_index}</td><td>${f.duration_s}</td><td>${f.reason}</td></tr>`;
+      }
+      html += "</table>";
+      resultsEl.innerHTML = html;
+
+      if (result.datasets_scanned.length === 1) {
+        document.getElementById("delete-episode-ids").value = result.flagged.map(f => f.episode_index).join(", ");
+      }
+    }
+  } catch (e) {
+    statusEl.innerHTML = `<span class="status-fail">Lỗi: ${e}</span>`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById("delete-btn").addEventListener("click", async () => {
+  const statusEl = document.getElementById("delete-status");
+  const idsRaw = document.getElementById("delete-episode-ids").value.trim();
+
+  if (!lastCheckResult) { statusEl.innerHTML = '<span class="status-fail">Hãy chạy "Bắt đầu check" trước.</span>'; return; }
+  if (lastCheckResult.datasets_scanned.length !== 1) {
+    statusEl.innerHTML = '<span class="status-fail">Chỉ xóa được khi lần check trước quét đúng 1 dataset (hiện có ' + lastCheckResult.datasets_scanned.length + ').</span>';
+    return;
+  }
+  if (!idsRaw) { statusEl.innerHTML = '<span class="status-fail">Chưa nhập episode ID cần xóa.</span>'; return; }
+
+  const ids = idsRaw.split(",").map(s => s.trim()).filter(Boolean).map(Number);
+  if (ids.some(n => Number.isNaN(n))) { statusEl.innerHTML = '<span class="status-fail">Episode ID phải là số, cách nhau bởi dấu phẩy.</span>'; return; }
+
+  const datasetPath = lastCheckResult.datasets_scanned[0];
+  if (!confirm(`Xóa episode [${ids.join(", ")}] khỏi:\n${datasetPath}\n\n(Bản gốc sẽ được backup sang "<dataset>_old" trước khi ghi đè.)`)) return;
+
+  const btn = document.getElementById("delete-btn");
+  btn.disabled = true;
+  statusEl.innerHTML = "Đang xóa...";
+
+  try {
+    const result = await postJSON("/api/delete", { dataset_path: datasetPath, episode_indices: ids });
+    statusEl.innerHTML = result.ok
+      ? `<span class="status-ok">Đã xóa episode [${result.deleted.join(", ")}]. Bản gốc backup tại: ${result.backup_path}</span>`
+      : `<span class="status-fail">Thất bại: ${result.error || result.stderr || "xem log"}</span>`;
+  } catch (e) {
+    statusEl.innerHTML = `<span class="status-fail">Lỗi: ${e}</span>`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

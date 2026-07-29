@@ -1,6 +1,0 @@
-Warning: keyframe 'home' not found, using defaults.
-{"timestamp":"2026-07-23T07:51:06.910364Z","level":"INFO","fields":{"message":"","name":"MeterProvider.GlobalSet","message":"Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope()."},"target":"opentelemetry"}
-{"timestamp":"2026-07-23T07:51:06.912040Z","level":"WARN","fields":{"message":"Ignoring output `status` not in node's output list."},"target":"dora_node_api::node"}
-[fk] step= 2000  step=0.40ms  hz=188.0
-[fk] step= 4000  step=0.38ms  hz=269.0
-[fk] step= 6000  step=0.55ms  hz=314.0

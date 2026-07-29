@@ -1,3 +1,0 @@
-Warning: keyframe 'home' not found, using defaults.
-{"timestamp":"2026-07-23T07:50:31.903549Z","level":"INFO","fields":{"message":"","name":"MeterProvider.GlobalSet","message":"Global meter provider is set. Meters can now be created using global::meter() or global::meter_with_scope()."},"target":"opentelemetry"}
-{"timestamp":"2026-07-23T07:50:31.904351Z","level":"WARN","fields":{"message":"Ignoring output `status` not in node's output list."},"target":"dora_node_api::node"}

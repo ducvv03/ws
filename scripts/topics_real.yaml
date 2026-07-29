@@ -1,0 +1,74 @@
+# Topic mapping for bag_to_lerobot.py — REAL hardware bags (record_session_tmux.sh).
+#
+# `mode: real` selects the extraction logic for control_msgs/msg/JointTrajectoryControllerState:
+# each group's ONE topic carries both the achieved state (`.feedback`, -> observation.state) and
+# the commanded target (`.reference`, -> action) for its joints. Message *type* is not declared
+# here — bag_to_lerobot.py reads it straight from the bag's own topic metadata, so this file only
+# ever needs topic names / joint names, never message types.
+#
+# Joint order across all groups (left_arm, right_arm, left_hand, right_hand) is the canonical
+# 26-joint order also used by topics_sim.yaml, so a real-recorded and a sim-recorded dataset can
+# be trained together. Hand joint order within each group matches
+# OpenArmRevo2FollowerConfig._hand_joint_names(): thumb_metacarpal, thumb_proximal,
+# index_proximal, middle_proximal, ring_proximal, pinky_proximal.
+mode: real
+
+joint_groups:
+  - state_topic: /left_joint_trajectory_controller/controller_state
+    joint_names:
+      - openarm_left_joint1
+      - openarm_left_joint2
+      - openarm_left_joint3
+      - openarm_left_joint4
+      - openarm_left_joint5
+      - openarm_left_joint6
+      - openarm_left_joint7
+  - state_topic: /right_joint_trajectory_controller/controller_state
+    joint_names:
+      - openarm_right_joint1
+      - openarm_right_joint2
+      - openarm_right_joint3
+      - openarm_right_joint4
+      - openarm_right_joint5
+      - openarm_right_joint6
+      - openarm_right_joint7
+  - state_topic: /left_revo2_hand_controller/controller_state
+    joint_names:
+      - left_thumb_metacarpal_joint
+      - left_thumb_proximal_joint
+      - left_index_proximal_joint
+      - left_middle_proximal_joint
+      - left_ring_proximal_joint
+      - left_pinky_proximal_joint
+  - state_topic: /right_revo2_hand_controller/controller_state
+    joint_names:
+      - right_thumb_metacarpal_joint
+      - right_thumb_proximal_joint
+      - right_index_proximal_joint
+      - right_middle_proximal_joint
+      - right_ring_proximal_joint
+      - right_pinky_proximal_joint
+
+# observation.images.<key> in the resulting dataset. Same names/topics for real and sim so
+# camera keys line up across both.
+camera_topics:
+  cam_head: /cam_head/cam_head/color/image_raw
+  cam_left: /cam_left/cam_left/color/image_raw
+  cam_right: /cam_right/cam_right/color/image_raw
+
+# TCP pose lookup (tf2), same frames/convention as OpenArmRevo2FollowerConfig. This is the
+# *achieved* end-effector pose (forward-kinematics of the real joint state) -> observation.state.
+tf_base_frame: openarm_body_link0
+left_tcp_frame: openarm_left_tcp
+right_tcp_frame: openarm_right_tcp
+
+# VR-commanded end-effector pose (geometry_msgs/msg/PoseStamped or Pose) -> action, as
+# <side>_ee_pose.{x,y,z,qx,qy,qz,qw}. This is the *target* pose the operator asked for — a
+# distinct signal from the tcp pose above, same command-vs-achieved split as joints
+# (reference/commanded -> action, feedback/achieved -> observation.state).
+# NOTE: as of 2026-07-21 record_session_tmux.sh's `ros2 bag record` topic list does NOT include
+# these two topics for real-hardware bags — add them there before recording, or older real bags
+# won't have this data and bag_to_lerobot.py will fail with a clear "topic not found" error.
+ee_pose_topics:
+  left: /left_ee_pose
+  right: /right_ee_pose
