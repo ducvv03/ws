@@ -1,0 +1,36 @@
+# Button -> phase/task mapping for bag_split_episodes.py.
+#
+# episode_start_button: button that marks the start of a new episode (e.g. "robot moves to
+# position A"). Optional — omit/remove this key if there's no separate episode-start marker
+# and the first phase's start_button doubles as the episode boundary.
+#
+# cancel_button: optional. Pressed any time after an episode has started (not while waiting for
+# one to start), it discards every segment recorded so far for the current episode attempt and
+# returns to the same "waiting to start" state — so the next thing to press is
+# episode_start_button again (or the first phase's start_button, if episode_start_button isn't
+# set). Use this to redo a botched episode without stopping the recording. Must not be the same
+# button as episode_start_button or any phase's start_button/end_button.
+#
+# phases: ordered list, one entry per segment to extract, in the order they occur within an
+# episode. Each entry:
+#   name:         short phase id, written to segments.json's "phase" field
+#   start_button: button whose rising edge marks t_start for this phase
+#   end_button:   button whose rising edge marks t_end for this phase
+#   task:         natural-language task string written to segments.json's "task" field
+#
+# If one phase's end_button is the same button as the next phase's start_button (e.g. "b" both
+# ends "pick" and starts "hold" in the same press), the next phase's t_start is set to that same
+# timestamp automatically — no separate press is required. If they differ, the script waits for
+# a fresh press of the next phase's start_button.
+episode_start_button: x
+cancel_button: b
+
+phases:
+  - name: pick
+    start_button: x
+    end_button: y
+    task: "Lift the metal box from the bottom and place it on the higher platform."
+  - name: place
+    start_button: y
+    end_button: a
+    task: "Lift the metal box from the higher platform and place it on the bottom."
