@@ -7,13 +7,12 @@
 #   pane 0 (ssh JetsonAGX@10.87.25.239, ~/pnk/ws) -> can_configure (auto) + ros2 launch realsense2_camera ... cam_head (auto-run)
 #   pane 1 (ssh JetsonAGX@10.87.25.239, ~/pnk/ws) -> ros2 launch realsense2_camera ... cam_left (auto-run)
 #   pane 2 (ssh JetsonAGX@10.87.25.239, ~/pnk/ws) -> ros2 launch realsense2_camera ... cam_right (auto-run)
-#   pane 3 (ssh JetsonAGX@10.87.25.239)           -> sshfs mount of the NAS data share onto ~/data (auto-run)
+#   pane 3 (local, ~/pnk/ws/dora-openarm-ros2)    -> python3 vr_buttons_episode_logger.py (auto-run)
 #   pane 4 (ssh JetsonAGX@10.87.25.239, ~/work/simple_trans_receive) -> transrecv_udp server (auto-run)
 #
 # See record_session_tmux_manual.sh for the other 4 panes (arm bringup, VR bridge, bag record, VR
 # connect client) — those need a manual Enter each, so they live in their own smaller window.
-# Pane 3 here (NAS mount) should finish before relying on ~/data in the manual session's bag-record
-# pane; pane 0 here (can_configure) should finish before pressing Enter on the manual session's arm
+# Pane 0 here (can_configure) should finish before pressing Enter on the manual session's arm
 # bringup pane.
 #
 # SSH login is automated via `sshpass` (requires `sudo apt-get install -y sshpass`) using the
@@ -21,20 +20,18 @@
 # still be a brief connection-establishment delay before the remote shell is ready, though — if a
 # pane doesn't show its next command ready right after connecting, just retype it.
 #
-# SECURITY NOTE: the Jetson's and NAS's SSH passwords are embedded in this script (JETSON_PASS,
-# NAS_PASS below) for automation — this repo is pushed to a GitHub remote, so those passwords are
-# effectively public in git history from this commit onward. Prefer switching to SSH key-based auth
-# and dropping sshpass/*_PASS entirely if this matters.
+# SECURITY NOTE: the Jetson's SSH password is embedded in this script (JETSON_PASS below) for
+# automation — this repo is pushed to a GitHub remote, so that password is effectively public in
+# git history from this commit onward. Prefer switching to SSH key-based auth and dropping
+# sshpass/JETSON_PASS entirely if this matters.
 #
 # Requires tmux (not installed by default on this machine — `sudo apt-get install -y tmux` first).
 set -euo pipefail
 
 SESSION="openarm_record_auto"
-JETSON="JetsonAGX@10.87.25.239"
+JETSON="JetsonAGX@10.87.25.232"
 JETSON_PASS="1"
 SSH_JETSON="sshpass -p '$JETSON_PASS' ssh $JETSON"
-NAS_HOST="ducvv@192.168.100.103"
-NAS_PASS="1"
 
 if tmux has-session -t "$SESSION" 2>/dev/null; then
   echo "tmux session '$SESSION' already exists — attaching instead of restarting."
@@ -46,7 +43,7 @@ fi
 tmux new-session -d -s "$SESSION" -n auto -c "$HOME/pnk/ws"
 tmux split-window -h -t "$SESSION:0" -c "$HOME/pnk/ws"
 tmux split-window -v -t "$SESSION:0.0" -c "$HOME/pnk/ws"
-tmux split-window -v -t "$SESSION:0.1" -c "$HOME/pnk/ws"
+tmux split-window -v -t "$SESSION:0.1" -c "$HOME/pnk/ws/dora-openarm-ros2"
 tmux split-window -v -t "$SESSION:0.2" -c "$HOME/pnk/ws"
 tmux select-layout -t "$SESSION:0" tiled
 
@@ -70,12 +67,9 @@ tmux send-keys -t "$SESSION:0.2" \
 tmux send-keys -t "$SESSION:0.2" \
   'ros2 launch realsense2_camera rs_launch.py camera_name:=cam_right camera_namespace:=cam_right serial_no:=_260322270361 enable_color:=true enable_depth:=false enable_infra1:=false enable_infra2:=false depth_module.color_profile:=640x480x30' C-m
 
-# Pane 3: SSH into the Jetson, then auto-run the sshfs mount of the NAS data share onto ~/data —
-# sshfs's own SSH auth is automated via sshpass/NAS_PASS the same way the outer Jetson login is.
+# Pane 3: local (no SSH) — auto-runs the VR-buttons episode logger.
 tmux send-keys -t "$SESSION:0.3" \
-  "$SSH_JETSON" C-m
-tmux send-keys -t "$SESSION:0.3" \
-  "sshpass -p '$NAS_PASS' sshfs $NAS_HOST:data/share ~/data" C-m
+  'python3 vr_buttons_episode_logger.py' C-m
 
 # Pane 4: SSH into the Jetson, cd + source install/setup.bash, then auto-run the transrecv_udp
 # server.

@@ -1,18 +1,19 @@
 #!/usr/bin/env bash
-# Sim-mode counterpart to record_session_tmux.sh — opens a 3-terminal OpenArm Revo2
-# fake-hardware session as one tmux window with 3 tiled panes:
+# Sim-mode counterpart to record_session_tmux.sh — opens a 4-terminal OpenArm Revo2
+# VR-bridge/recording session as one tmux window with 4 tiled panes:
 #
-#   pane 0 (~/pnk/ws)                   -> ros2 launch openarm_bringup ... use_fake_hardware:=true (auto-start)
-#   pane 1 (~/pnk/ws/dora-openarm-ros2) -> venv setup (auto) + uv run dora run ... _sim.yaml (VR bridge, typed, NOT auto-run)
-#   pane 2 (~/pnk/ws)                   -> ros2 bag record ... (typed, NOT auto-run)
+#   pane 0 (~/pnk/ws/dora-openarm-ros2) -> venv setup (auto) + uv run dora run ... _sim.yaml (VR bridge, typed, NOT auto-run)
+#   pane 1                              -> ros2 bag record ... (typed, NOT auto-run)
+#   pane 2                              -> conda activate sim + isaacsim (auto-start)
+#   pane 3 (~/pnk/ws/dora-openarm-ros2) -> python3 vr_buttons_episode_logger.py (auto-start)
 #
-# No CAN configuration and no cameras here — fake hardware needs neither. Pane 0 is safe to
-# auto-start since it never touches real CAN/motors.
+# No fake-hardware bringup pane here — bring the arm up separately if/when you need it running.
 #
-# Pane 1 (VR bridge) and pane 2 (rosbag record) are typed but NOT submitted — press Enter in each
-# only after confirming (from pane 0's logs) that the fake-hardware controllers are active. This
-# ordering matters: starting the VR bridge or the bag recording too early can silently miss
-# feedback.
+# Pane 0 (VR bridge) and pane 1 (rosbag record) are typed but NOT submitted — press Enter in each
+# only after confirming that the arm (however you brought it up) is active. This ordering matters:
+# starting the VR bridge or the bag recording too early can silently miss feedback. Panes 2
+# (Isaac Sim) and 3 (VR-buttons episode logger) auto-start right away since they're independent
+# of the arm/VR bridge readiness.
 #
 # NOTE: --mode sim on the dora-to-ros2 node publishes a single merged /joint_command
 # (sensor_msgs/JointState) instead of the real-mode per-arm/per-hand JointTrajectory command
@@ -31,24 +32,31 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
   exit 0
 fi
 
-tmux new-session -d -s "$SESSION" -n record_sim -c "$HOME/pnk/ws"
-tmux split-window -h -t "$SESSION:0" -c "$HOME/pnk/ws/dora-openarm-ros2"
-tmux split-window -v -t "$SESSION:0.1" -c "$HOME/pnk/ws"
+tmux new-session -d -s "$SESSION" -n record_sim -c "$HOME/pnk/ws/dora-openarm-ros2"
+tmux split-window -h -t "$SESSION:0" -c "$HOME/data"
+tmux split-window -v -t "$SESSION:0.1"
+tmux split-window -v -t "$SESSION:0.0" -c "$HOME/pnk/ws/dora-openarm-ros2"
 tmux select-layout -t "$SESSION:0" tiled
 
-# Pane 0: fake-hardware bimanual bringup (auto-starts — no real CAN/motors involved).
-tmux send-keys -t "$SESSION:0.0" \
-  'ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=true use_fake_hand:=true' C-m
-
-# Pane 1: set up the venv (auto-starts), then leave the Dora ROS2<->VR bridge (sim dataflow)
+# Pane 0: set up the venv (auto-starts), then leave the Dora ROS2<->VR bridge (sim dataflow)
 # command typed but deliberately NOT submitted.
-tmux send-keys -t "$SESSION:0.1" \
+tmux send-keys -t "$SESSION:0.0" \
   'cd ~/pnk/ws/dora-openarm-ros2/ && python3 -m venv .venv && source .venv/bin/activate' C-m
-tmux send-keys -t "$SESSION:0.1" \
+tmux send-keys -t "$SESSION:0.0" \
   'uv run dora run config/dataflow_bridge_ros2_vr_sim.yaml --uv'
 
-# Pane 2: ros2 bag record of the take-box topic set (sim) — typed but deliberately NOT submitted.
+# Pane 1: leave the ros2 bag record of the take-box topic set (sim) typed but deliberately NOT
+# submitted. Output dir is auto-computed as /home/ws/data/sim/raw_data/<YYYYMMDD>/<NNN> (NNN =
+# zero-padded 3-digit id, first unused one for today).
+tmux send-keys -t "$SESSION:0.1" \
+  'DAY_DIR=/home/ws/data/sim/raw_data/$(date +%Y%m%d) && mkdir -p "$DAY_DIR" && N=0 && while [ -d "$DAY_DIR/$(printf %03d $N)" ]; do N=$((N+1)); done && OUT_DIR="$DAY_DIR/$(printf %03d $N)" && ros2 bag record -o "$OUT_DIR" /cam_head/cam_head/color/image_raw /cam_left/cam_left/color/image_raw /cam_right/cam_right/color/image_raw /tf /tf_static /vr_buttons /left_ee_pose /right_ee_pose /joint_command /joint_states'
+
+# Pane 2: activate the sim conda env and launch Isaac Sim (auto-starts).
 tmux send-keys -t "$SESSION:0.2" \
-  'mkdir -p bags && ros2 bag record -o bags/take_box_sim_$(date +%Y%m%d_%H%M%S) /cam_head/cam_head/color/image_raw /cam_left/cam_left/color/image_raw /cam_right/cam_right/color/image_raw /tf /tf_static /vr_buttons /left_ee_pose /right_ee_pose /joint_command /joint_states'
+  'conda activate sim && isaacsim' C-m
+
+# Pane 3: VR-buttons episode logger (auto-starts).
+tmux send-keys -t "$SESSION:0.3" \
+  'python3 vr_buttons_episode_logger.py' C-m
 
 tmux attach -t "$SESSION"
