@@ -33,6 +33,7 @@ Outputs:
 from __future__ import annotations
 
 import argparse
+import math
 import time
 
 import dora
@@ -46,6 +47,36 @@ from openarm_control import (
     ik_params_from_args,
     setup_from_args,
 )
+
+# Local (wrist-frame) tilt applied to every incoming target before solving — a
+# site-specific patch, not part of upstream dora-openarm-kinematics.
+_Y_TILT_DEG = 25.0
+_Y_TILT_HALF_RAD = math.radians(_Y_TILT_DEG) / 2.0
+_Y_TILT_QUAT = np.array(
+    [math.cos(_Y_TILT_HALF_RAD), 0.0, math.sin(_Y_TILT_HALF_RAD), 0.0], dtype=np.float32
+)  # (w, x, y, z), matches this node's [px, py, pz, qw, qx, qy, qz] pose convention
+
+
+def _quat_mul(q1: np.ndarray, q2: np.ndarray) -> np.ndarray:
+    """Hamilton product, (w, x, y, z) order."""
+    w1, x1, y1, z1 = q1
+    w2, x2, y2, z2 = q2
+    return np.array(
+        [
+            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
+            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2,
+        ],
+        dtype=np.float32,
+    )
+
+
+def _apply_y_tilt(pose: np.ndarray) -> np.ndarray:
+    """Right-multiplies pose's orientation by _Y_TILT_QUAT to rotate +25° about its own local Y axis."""
+    tilted = pose.copy()
+    tilted[3:7] = _quat_mul(pose[3:7], _Y_TILT_QUAT)
+    return tilted
 
 
 def _map_trigger_to_gripper(trigger: float) -> float:
@@ -82,7 +113,7 @@ def _run(args: argparse.Namespace) -> None:
                     f"Warning: expected target_right[7], got {values.shape}. Skipping."
                 )
                 continue
-            kin.set_target("right", values)
+            kin.set_target("right", _apply_y_tilt(values))
 
         elif eid == "target_left" and "left" in kin.setup.sides:
             if values.shape != (7,):
@@ -90,7 +121,7 @@ def _run(args: argparse.Namespace) -> None:
                     f"Warning: expected target_left[7], got {values.shape}. Skipping."
                 )
                 continue
-            kin.set_target("left", values)
+            kin.set_target("left", _apply_y_tilt(values))
 
         elif eid == "trigger_right":
             kin.set_gripper("right", _map_trigger_to_gripper(float(values[0])))
