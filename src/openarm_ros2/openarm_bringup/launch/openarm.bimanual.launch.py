@@ -52,7 +52,7 @@ def namespace_from_context(context, arm_prefix):
 
 def generate_robot_description(context: LaunchContext, description_package, description_file,
                                arm_type, use_fake_hardware, use_fake_hand, right_can_interface, left_can_interface,
-                               use_teleop):
+                               use_teleop, hand_protocol, right_hand_can_interface, left_hand_can_interface, hands):
     """Generate robot description using xacro processing."""
     description_package_str = context.perform_substitution(description_package)
     arm_type_str = context.perform_substitution(arm_type)
@@ -61,6 +61,10 @@ def generate_robot_description(context: LaunchContext, description_package, desc
     right_can_interface_str = context.perform_substitution(right_can_interface)
     left_can_interface_str = context.perform_substitution(left_can_interface)
     use_teleop_str = context.perform_substitution(use_teleop)
+    hand_protocol_str = context.perform_substitution(hand_protocol)
+    right_hand_can_str = context.perform_substitution(right_hand_can_interface)
+    left_hand_can_str = context.perform_substitution(left_hand_can_interface)
+    hands_str = context.perform_substitution(hands)
 
     folder_name, file_name = resolve_arm_config(arm_type_str)
 
@@ -89,9 +93,16 @@ def generate_robot_description(context: LaunchContext, description_package, desc
             "right_can_interface": right_can_interface_str,
             "left_can_interface": left_can_interface_str,
             # --- [ĐÃ SỬA] TRUYỀN ĐƯỜNG DẪN VÀO MAPPINGS ĐỂ XACRO KHÔNG BỊ LỖI ---
-            "left_protocol_config_file": os.path.join(brainco_driver_path, "config", "protocol_modbus_left.yaml"),
-            "right_protocol_config_file": os.path.join(brainco_driver_path, "config", "protocol_modbus_right.yaml"),
+            # Selected by the hand_protocol launch argument: modbus | canfd | socketcan.
+            "left_protocol_config_file": os.path.join(
+                brainco_driver_path, "config", f"protocol_{hand_protocol_str}_left.yaml"),
+            "right_protocol_config_file": os.path.join(
+                brainco_driver_path, "config", f"protocol_{hand_protocol_str}_right.yaml"),
             "initial_positions_file": os.path.join(brainco_moveit_path, "config", "dual_revo2_initial_positions.yaml"),
+            # Empty keeps whatever the protocol config file specifies.
+            "right_hand_can_interface": right_hand_can_str,
+            "left_hand_can_interface": left_hand_can_str,
+            "hands": hands_str,
         }
     ).toprettyxml(indent="  ")
 
@@ -100,14 +111,16 @@ def generate_robot_description(context: LaunchContext, description_package, desc
 
 def robot_nodes_spawner(context: LaunchContext, description_package, description_file,
                         arm_type, use_fake_hardware, use_fake_hand, controllers_file,
-                        right_can_interface, left_can_interface, arm_prefix, use_teleop):
+                        right_can_interface, left_can_interface, arm_prefix, use_teleop,
+                        hand_protocol, right_hand_can_interface, left_hand_can_interface,
+                        hands):
     """Spawn both robot state publisher and control nodes with shared robot description."""
     namespace = namespace_from_context(context, arm_prefix)
 
     robot_description = generate_robot_description(
         context, description_package, description_file, arm_type,
         use_fake_hardware, use_fake_hand, right_can_interface, left_can_interface,
-        use_teleop,
+        use_teleop, hand_protocol, right_hand_can_interface, left_hand_can_interface, hands,
     )
 
     controllers_file_str = context.perform_substitution(controllers_file)
@@ -272,6 +285,46 @@ def generate_launch_description():
             description="CAN interface to use for the left arm.",
         ),
         DeclareLaunchArgument(
+            "hand_protocol",
+            default_value="modbus",
+            choices=["modbus", "canfd", "socketcan"],
+            description=(
+                "Transport for the Revo2 hands. Selects "
+                "brainco_hand_driver/config/protocol_<value>_{left,right}.yaml. "
+                "'socketcan' expects the hand interfaces to be up already "
+                "(the arms hold can0/can1, so the hands default to can2/can3); "
+                "'canfd' needs the driver rebuilt with -DENABLE_CANFD=ON."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "hands",
+            default_value="both",
+            choices=["both", "left", "right"],
+            description=(
+                "Which Revo2 hands to bring up. A single side instantiates only that "
+                "hand's ros2_control system and spawns only its controller, so a robot "
+                "with one hand wired does not fail on the missing one."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "right_hand_can_interface",
+            default_value="",
+            description=(
+                "SocketCAN interface for the right Revo2 hand. Empty keeps the value "
+                "from the protocol config file (can2). Set to the right arm's bus "
+                "(can0) to share one line down the arm."
+            ),
+        ),
+        DeclareLaunchArgument(
+            "left_hand_can_interface",
+            default_value="",
+            description=(
+                "SocketCAN interface for the left Revo2 hand. Empty keeps the value "
+                "from the protocol config file (can3). Set to the left arm's bus "
+                "(can1) to share one line down the arm."
+            ),
+        ),
+        DeclareLaunchArgument(
             "controllers_file",
             default_value="openarm_bimanual_controllers.yaml",
             description="Controllers file to use.",
@@ -305,6 +358,10 @@ def generate_launch_description():
     left_can_interface = LaunchConfiguration("left_can_interface")
     arm_prefix = LaunchConfiguration("arm_prefix")
     use_payload_compensation = LaunchConfiguration("use_payload_compensation")
+    hand_protocol = LaunchConfiguration("hand_protocol")
+    right_hand_can_interface = LaunchConfiguration("right_hand_can_interface")
+    left_hand_can_interface = LaunchConfiguration("left_hand_can_interface")
+    hands = LaunchConfiguration("hands")
 
     try:
         camera_pkg_share = get_package_share_directory("openarm_bringup")
@@ -344,7 +401,8 @@ def generate_launch_description():
         function=robot_nodes_spawner,
         args=[description_package, description_file, arm_type,
               use_fake_hardware, use_fake_hand, controllers_file,
-              right_can_interface, left_can_interface, arm_prefix, use_teleop]
+              right_can_interface, left_can_interface, arm_prefix, use_teleop,
+              hand_protocol, right_hand_can_interface, left_hand_can_interface, hands]
     )
 
     rviz_config_file = PathJoinSubstitution(
@@ -379,20 +437,38 @@ def generate_launch_description():
         args=[robot_controller, arm_prefix]
     )
 
-    hand_controller_spawner = OpaqueFunction(
-        function=lambda context: [Node(
-            package="controller_manager",
-            executable="spawner",
-            namespace=namespace_from_context(context, arm_prefix),
-            arguments=[
-                "left_revo2_hand_controller", "right_revo2_hand_controller",
-                "-c",
-                f"/{namespace_from_context(context, arm_prefix)}/controller_manager"
-                if namespace_from_context(context, arm_prefix)
-                else "/controller_manager"
-            ],
-        )]
-    )
+    def hand_controller_spawner_fn(context: LaunchContext):
+        """Spawn one controller per hand that was actually instantiated.
+
+        The spawner activates its controllers in order and aborts on the first
+        failure, so listing a hand whose hardware never configured would also
+        keep the working hand's controller from ever coming up.
+        """
+        hands_str = context.perform_substitution(hands)
+        controllers = []
+        if hands_str in ("both", "left"):
+            controllers.append("left_revo2_hand_controller")
+        if hands_str in ("both", "right"):
+            controllers.append("right_revo2_hand_controller")
+
+        namespace = namespace_from_context(context, arm_prefix)
+        controller_manager_ref = (
+            f"/{namespace}/controller_manager" if namespace else "/controller_manager"
+        )
+
+        # One spawner per controller: a failure on one hand then cannot take the
+        # other one down with it.
+        return [
+            Node(
+                package="controller_manager",
+                executable="spawner",
+                namespace=namespace,
+                arguments=[controller, "-c", controller_manager_ref],
+            )
+            for controller in controllers
+        ]
+
+    hand_controller_spawner = OpaqueFunction(function=hand_controller_spawner_fn)
 
     arm_pid_controller_spawner_func = OpaqueFunction(
         function=arm_pid_controller_spawner,

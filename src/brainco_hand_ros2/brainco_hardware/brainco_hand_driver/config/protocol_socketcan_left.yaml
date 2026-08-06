@@ -1,0 +1,67 @@
+hardware:
+  protocol: socketcan
+  slave_id: 126
+  log_level: info
+  ensure_physical_mode: true
+  ctrl_param_duration_ms: 55
+  position_command_scale: 572.9577951308232
+  position_state_scale: 0.0017453292519943296
+  velocity_state_scale: 0.0017453292519943296
+  position_device_min: 0.0
+  position_device_max: 1000.0
+
+  # SocketCAN 传输配置 / SocketCAN transport
+  #
+  # 两只手共用同一条总线 / both hands share one bus.
+  # 它们靠 slave_id（左 126 / 右 127）区分，报文 ID 的高字节即 slave，
+  # 因此下面的过滤器足以让每只手只看到自己的应答。
+  # Interface names come from bash_setup/can_rename.sh.
+  can_interface: can_hand
+
+  # 位速率不在这里配置，它属于网络接口本身 / bitrate belongs to the interface:
+  #   sudo ip link set can_hand up type can \
+  #     bitrate 1000000 sample-point 0.75 \
+  #     dbitrate 5000000 dsample-point 0.75 fd on
+  # 1 Mbps 仲裁 / 5 Mbps 数据，与寄存器 1002/1003 的出厂值一致。
+
+  can_master_id: 1
+
+  # 阻塞式轮询的上限 / upper bound on the blocking RX poll.
+  #
+  # 10 ms 对齐厂商参考实现的实际等待预算 / 10 ms matches what the vendor
+  # reference actually waits: zlg_linux.py loops max_retries=100 with a 0.1 ms
+  # sleep, so 10 ms of deliberate waiting. Its docstring claims ~200 ms, but
+  # that figure is USB round-trip overhead in the ZLG library, not an intended
+  # timeout -- SocketCAN polls the fd directly and pays none of it.
+  #
+  # 上限由 rw_rate 决定 / bounded by rw_rate: this poll must fit inside the
+  # component's own period, which is 20 ms at 50 Hz. is_async keeps it off the
+  # 750 Hz RT loop entirely; turn is_async off and this must drop below 1 ms.
+  can_rx_wait_time: 10
+
+  # 让该硬件组件异步运行 / run this component asynchronously, so a CAN
+  # round-trip that times out never stalls the RT update loop.
+  is_async: true
+  # 750 Hz 的整除数 / must divide the controller_manager rate (750 = 2*3*5^3),
+  # otherwise it is rounded down and the manager warns about an uneven period.
+  # 50 Hz 给 10 ms 轮询留出两倍余量 / 50 Hz leaves the 10 ms poll a 2x margin,
+  # and the fingers cap out around 2.5 rad/s so nothing needs faster feedback.
+  rw_rate: 50
+
+  # 与 ZLG CANFD 路径保持线上兼容 / wire-compatible with the ZLG CAN FD path
+  can_extended_id: true
+  can_bitrate_switch: true
+
+  # 只接收本机械手自己的应答 / accept only this hand's own replies.
+  #
+  # 已在总线上实测确认 / confirmed on the wire, not inferred:
+  #   TX 0x807E0108   RX 0x807E0135   -> [slave][master][payload_len]
+  # 低字节是负载长度而非命令号 / the low byte is the payload length, not a
+  # command code: 0x35 = 53 real bytes, carried in a padded 64-byte CAN FD frame.
+  # 与厂商参考实现一致 / matches the vendor reference, python/revo2_canfd/zlg_linux.py.
+  # 掩码比对 EFF 标志位加 slave 字节，本会话因此只收到 slave 126 (0x7E)
+  # 的帧：既滤掉手臂的标准帧，也滤掉共用总线上另一只手的应答。
+  #
+  # 没有它时，两只手会互相吃掉对方的回包，get_motor_status 一直返回空。
+  can_filter_id: "0x807E0000"
+  can_filter_mask: "0x80FF0000"

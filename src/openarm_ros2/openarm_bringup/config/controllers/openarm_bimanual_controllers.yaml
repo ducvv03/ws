@@ -125,6 +125,14 @@ left_joint_trajectory_controller:
 # Left Hand Configuration
 left_revo2_hand_controller:
   ros__parameters:
+    # Track the hand hardware's rw_rate (50 Hz, see
+    # brainco_hand_driver/config/protocol_socketcan_*.yaml). Running faster only
+    # emits duplicate commands per actual CAN transaction plus a controller_state
+    # nobody reads; the driver drops unchanged goals anyway.
+    #
+    # 50 divides 750 exactly. A non-divisor gets rounded down and the manager
+    # then warns that the update period is not constant.
+    update_rate: 50
     joints:
       - left_thumb_metacarpal_joint
       - left_thumb_proximal_joint
@@ -146,6 +154,14 @@ left_revo2_hand_controller:
 # Right Hand Configuration
 right_revo2_hand_controller:
   ros__parameters:
+    # Track the hand hardware's rw_rate (50 Hz, see
+    # brainco_hand_driver/config/protocol_socketcan_*.yaml). Running faster only
+    # emits duplicate commands per actual CAN transaction plus a controller_state
+    # nobody reads; the driver drops unchanged goals anyway.
+    #
+    # 50 divides 750 exactly. A non-divisor gets rounded down and the manager
+    # then warns that the update period is not constant.
+    update_rate: 50
     joints:
       - right_thumb_metacarpal_joint
       - right_thumb_proximal_joint

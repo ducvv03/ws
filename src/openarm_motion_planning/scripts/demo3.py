@@ -42,9 +42,14 @@ class MoveDualArmHybrid(Node):
         self.js_sub = self.create_subscription(
             JointState, "/joint_states", self.joint_state_callback, 10, callback_group=self.cb_group)
 
-        # Topic for hands
-        self.right_hand_pub = self.create_publisher(JointTrajectory, "/right_hand_controller/joint_trajectory", 10)
-        self.left_hand_pub = self.create_publisher(JointTrajectory, "/left_hand_controller/joint_trajectory", 10)
+        # Topic for hands. Tên controller là *_revo2_hand_controller, khai báo
+        # trong openarm_bringup/config/controllers/openarm_bimanual_controllers.yaml.
+        # Publish sai tên topic thì ROS 2 không báo lỗi gì cả, message rơi vào
+        # hư không và bàn tay đứng im — nên tên ở đây phải khớp đúng.
+        self.right_hand_pub = self.create_publisher(
+            JointTrajectory, "/right_revo2_hand_controller/joint_trajectory", 10)
+        self.left_hand_pub = self.create_publisher(
+            JointTrajectory, "/left_revo2_hand_controller/joint_trajectory", 10)
 
         # Topic Streaming for arms
         self.left_arm_pub = self.create_publisher(JointTrajectory, "/left_joint_trajectory_controller/joint_trajectory",

@@ -28,6 +28,13 @@ limitations under the License.
   <xacro:arg name="right_can_interface" default="can0" />
   <xacro:arg name="left_protocol_config_file" default=""/>
   <xacro:arg name="right_protocol_config_file" default=""/>
+  <!-- Optional SocketCAN interface override per hand; empty keeps the value from
+       the protocol config file. -->
+  <xacro:arg name="left_hand_can_interface" default=""/>
+  <xacro:arg name="right_hand_can_interface" default=""/>
+  <!-- Which Revo2 hands to instantiate: both | left | right. Use a single side
+       to bring the robot up when only one hand is wired. -->
+  <xacro:arg name="hands" default="both"/>
   <xacro:arg name="initial_positions_file" default=""/>
   <xacro:arg name="left_arm_prefix" default="left_" />
   <xacro:arg name="right_arm_prefix" default="right_" />
@@ -106,7 +113,10 @@ limitations under the License.
         name="DualRevo2System"
         initial_positions_file="$(arg initial_positions_file)"
         left_protocol_config_file="$(arg left_protocol_config_file)"
-        right_protocol_config_file="$(arg right_protocol_config_file)"/>
+        right_protocol_config_file="$(arg right_protocol_config_file)"
+        left_hand_can_interface="$(arg left_hand_can_interface)"
+        right_hand_can_interface="$(arg right_hand_can_interface)"
+        hands="$(arg hands)"/>
   </xacro:unless>
 
 
