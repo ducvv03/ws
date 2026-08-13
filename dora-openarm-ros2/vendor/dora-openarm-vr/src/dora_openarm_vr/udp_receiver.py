@@ -20,6 +20,10 @@ import threading
 import time
 
 
+RECV_STATS_WINDOW = 100
+"""Number of datagram arrivals averaged per UDP timing log line."""
+
+
 class JsonUdpReceiver:
     """Background thread that binds a UDP socket and keeps the latest parsed JSON packet."""
 
@@ -58,6 +62,9 @@ class JsonUdpReceiver:
             return None
 
     def _loop(self) -> None:
+        recv_gaps_ms: list[float] = []
+        prev_recv_ns: int | None = None
+
         while self._running:
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as srv:
@@ -65,11 +72,31 @@ class JsonUdpReceiver:
                     srv.bind((self._host, self._port))
                     srv.settimeout(1.0)
                     print(f"[receiver] Listening on UDP {self._host}:{self._port}")
+                    # Don't let a rebind's downtime count as one packet gap.
+                    prev_recv_ns = None
 
                     while self._running:
                         try:
                             data, _ = srv.recvfrom(self._buf_size)
                             recv_ns = time.time_ns()
+
+                            if prev_recv_ns is not None:
+                                recv_gaps_ms.append((recv_ns - prev_recv_ns) / 1e6)
+                            prev_recv_ns = recv_ns
+
+                            if len(recv_gaps_ms) == RECV_STATS_WINDOW:
+                                span_ms = sum(recv_gaps_ms)
+                                print(
+                                    f"[receiver] udp recv gap avg over "
+                                    f"{RECV_STATS_WINDOW}: "
+                                    f"{span_ms / RECV_STATS_WINDOW:.3f} ms "
+                                    f"(min {min(recv_gaps_ms):.3f}, "
+                                    f"max {max(recv_gaps_ms):.3f}) "
+                                    f"→ {RECV_STATS_WINDOW / span_ms * 1e3:.1f} Hz",
+                                    flush=True,
+                                )
+                                recv_gaps_ms.clear()
+
                             last_msg = self._parse_packet(data)
                             arrivals = [recv_ns] if last_msg is not None else []
 

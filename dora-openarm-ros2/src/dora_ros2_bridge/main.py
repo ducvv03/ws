@@ -293,12 +293,12 @@ def _run(args: argparse.Namespace) -> None:
 
     # Finger closed limits (rad), same order as HAND_FINGERS (revo2 URDF upper
     # limits); every finger opens at 0.0.
-    HAND_CLOSED = np.array([1.57, 1.03, 0.4, 0.5, 0.6, 0.7 ], dtype=np.float64)
-    # Mock thumb pose (indices 0,1); the trigger only drives the fingers [2:].
-    MOCK_THUMB = np.array([0.0, 0.0], dtype=np.float64)
+    HAND_CLOSED = np.array([1.57, 1.03, 1.1, 1.1, 1.1, 1.1], dtype=np.float64)
+    # Initial thumb pose (indices 0,1), overwritten as soon as the thumbstick moves.
+    MOCK_THUMB = np.array([1.57, 0.0], dtype=np.float64)
 
-    # Persistent full 6-joint target per hand: the trigger updates only the
-    # 4-finger slice [2:], the thumb slice keeps MOCK_THUMB, and we always
+    # Persistent full 6-joint target per hand: the trigger updates the 4-finger
+    # slice [2:], the thumbstick updates the thumb slice [0:2], and we always
     # publish all 6 so the goal is never partial.
     hand_target_l = np.zeros(6, dtype=np.float64)
     hand_target_r = np.zeros(6, dtype=np.float64)
@@ -542,7 +542,7 @@ def _run(args: argparse.Namespace) -> None:
             # y -> thumb_proximal (idx 1). Axis mapped [0,1] * closed-limit (rest =
             # open); use (axis + 1) / 2 instead for full-range with center = mid.
             axis = float(np.clip(value.to_numpy()[0], -1.0, 1.0))
-            stick_l[0 if eid == "joystick_x_left" else 1] = axis
+            stick_l[0 if eid == "joystick_x_left" else 1] = axis if eid == "joystick_x_left" else -axis
             des = np.clip(stick_l, 0.0, 1.0) * HAND_CLOSED[0:2]
             hand_target_l[0:2] += np.clip(des - hand_target_l[0:2], -HAND_MAX_STEP, HAND_MAX_STEP)
             if args.mode == "real":
@@ -551,7 +551,7 @@ def _run(args: argparse.Namespace) -> None:
 
         if eid in ("joystick_x_right", "joystick_y_right"):
             # Right thumbstick drives the RIGHT thumb, same mapping as the left.
-            axis = float(np.clip(value.to_numpy()[0], -1.0, 1.0))
+            axis = float(np.clip(-value.to_numpy()[0], -1.0, 1.0))
             stick_r[0 if eid == "joystick_x_right" else 1] = axis
             des = np.clip(stick_r, 0.0, 1.0) * HAND_CLOSED[0:2]
             hand_target_r[0:2] += np.clip(des - hand_target_r[0:2], -HAND_MAX_STEP, HAND_MAX_STEP)

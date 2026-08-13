@@ -48,6 +48,10 @@ from openarm_control import (
 )
 
 
+SOLVE_STATS_WINDOW = 100
+"""Number of kin.solve() calls averaged per timing log line."""
+
+
 def _map_trigger_to_gripper(trigger: float) -> float:
     """trigger 0.0~1.0 → gripper joint position.
 
@@ -60,6 +64,8 @@ def _map_trigger_to_gripper(trigger: float) -> float:
 
 def _run(args: argparse.Namespace) -> None:
     kin = Kinematics(setup_from_args(args), ik_params_from_args(args))
+
+    solve_times_ms: list[float] = []
 
     node = dora.Node()
     node.send_output("status", pa.array(["ready"]))
@@ -104,7 +110,19 @@ def _run(args: argparse.Namespace) -> None:
         if not kin.ready():
             continue
 
+        t0 = time.perf_counter()
         result = kin.solve()
+        solve_times_ms.append((time.perf_counter() - t0) * 1e3)
+
+        if len(solve_times_ms) == SOLVE_STATS_WINDOW:
+            print(
+                f"[ik] solve avg over {SOLVE_STATS_WINDOW}: "
+                f"{sum(solve_times_ms) / SOLVE_STATS_WINDOW:.3f} ms "
+                f"(min {min(solve_times_ms):.3f}, max {max(solve_times_ms):.3f})",
+                flush=True,
+            )
+            solve_times_ms.clear()
+
         if result is None:
             continue
 
