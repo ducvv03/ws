@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PNK Motor Watch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="brand">
+      <h1>PNK Motor Watch</h1>
+      <span class="sub">openarm bimanual · revo2 · 2-dof head</span>
+    </div>
+    <span class="demo-badge" id="feedBadge"><span class="dot warn"></span>Connecting</span>
+    <span class="chip"><span class="dot" id="busDot0"></span>joint states <b id="busRate0">—</b></span>
+    <span class="chip">uptime <b id="uptime">—</b></span>
+    <button class="ghost" id="themeBtn" type="button">Theme</button>
+  </div>
+
+  <div class="link-banner" id="linkBanner" hidden>
+    <span class="dot crit"></span>
+    <span>No telemetry. <b id="linkDetail">websocket closed</b> — is <code>ros2 launch pnk_bringup</code> up, and is a broadcaster publishing <code>/dynamic_joint_states</code>?</span>
+  </div>
+
+  <div class="summary">
+    <div class="metric"><span class="k">Joints reporting</span><span class="v" id="mReport">—</span></div>
+    <div class="metric" id="mHotBox"><span class="k">Hottest coil</span><span class="v" id="mHot">—</span></div>
+    <div class="metric" id="mFaultBox"><span class="k">Active faults</span><span class="v" id="mFault">—</span></div>
+    <div class="metric" id="mStaleBox"><span class="k">Stale</span><span class="v" id="mStale">—</span></div>
+    <div class="metric"><span class="k">Peak effort</span><span class="v" id="mEffort">—<span class="u"> N·m</span></span></div>
+  </div>
+
+  <section class="panel">
+    <header>
+      <h2>Arm power</h2>
+      <span class="note">Disable takes one click · Enable takes two</span>
+    </header>
+    <!-- filled from DENSO_CONFIG.arms -->
+    <div class="power" id="power"></div>
+  </section>
+
+  <!-- panels are built from DENSO_CONFIG.groups: first two here, rest below -->
+  <div class="row arms" id="rowArms"></div>
+  <div class="row lower" id="rowLower"></div>
+
+  <section class="panel">
+    <header><h2>Fault feed</h2><span class="note">/rosout, WARN and above</span></header>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <div class="foot">
+    <section class="panel">
+      <header><h2>Reading the stripes</h2></header>
+      <div class="legend">
+        <span class="item"><span class="sw" style="background:var(--ok)"></span>Reporting, coil under 65 °C</span>
+        <span class="item"><span class="sw" style="background:var(--warn)"></span>Coil 65–80 °C — heading for a trip</span>
+        <span class="item"><span class="sw" style="background:var(--crit)"></span>Fault nibble set (0x8–0xF)</span>
+        <span class="item"><span class="sw" style="background:var(--stale)"></span>No frame for &gt;100 ms — silence, not a fault</span>
+        <span class="item"><span class="sw" style="background:var(--line)"></span>DISABLED (0x0) — not commanded</span>
+      </div>
+    </section>
+    <section class="panel">
+      <header><h2>Where this data comes from</h2><span class="note">/dynamic_joint_states</span></header>
+      <p class="hint">The server forwards every state interface <b>by name</b> and interprets none of them — thresholds, staleness, panel layout and the status table all live in <code>config.js</code>, next to this page.</p>
+      <p class="hint">Temperature and status stay empty until <b>openarm_hardware</b> exports those interfaces. The values already exist in <code>Motor::get_state_tmos()</code>; they stop at <code>export_state_interfaces()</code>, which returns only position, velocity and effort.</p>
+<pre class="schema"><i># add to openarm_simple_hardware.cpp — nothing else has to change</i>
+state_interfaces.emplace_back(hardware_interface::StateInterface(
+    joint_names_[i], <b>"temperature_mos"</b>,   &amp;tmos_states_[i]));
+state_interfaces.emplace_back(hardware_interface::StateInterface(
+    joint_names_[i], <b>"temperature_rotor"</b>, &amp;trotor_states_[i]));
+state_interfaces.emplace_back(hardware_interface::StateInterface(
+    joint_names_[i], <b>"status"</b>,            &amp;status_states_[i]));</pre>
+    </section>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

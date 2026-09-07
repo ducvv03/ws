@@ -1,0 +1,77 @@
+# denso_app mock server.
+#
+# Only what the SERVER needs to ACT. Which joints go in which panel, what
+# counts as hot, how a status nibble is spelled — all of that lives in
+# frontend/config.js, because the server does no interpreting.
+
+host: 0.0.0.0          # 0.0.0.0 so a tablet on the same wifi can reach it
+port: 8080
+stream_hz: 10.0        # telemetry frames pushed per second, NOT the control rate
+
+# Node-name prefixes whose WARN/ERROR/FATAL reach the page.
+# Empty list = every node on /rosout.
+watch_loggers: []
+
+arms:
+  left:
+    # Enable activates exactly ONE. They all claim the same command
+    # interfaces, so activating two would be refused anyway.
+    default_controller: left_joint_trajectory_controller
+
+    # Disable deactivates ALL of these. pnk_bringup spawns the trajectory
+    # controller AND the forward position controller for each arm, and VR
+    # teleop drives the latter — stopping only the trajectory controller
+    # would report success while the arm kept moving.
+    # Switched BEST_EFFORT: whichever ones are already inactive are fine.
+    controllers:
+      - left_joint_trajectory_controller
+      - left_forward_position_controller
+      - left_forward_velocity_controller
+      - left_arm_pid_controller
+
+    # Optional harder stop: also take the hardware interface to 'inactive',
+    # stopping that arm's CAN loop. Empty = controllers only.
+    hardware_components: []
+
+    # Joints checked for a latched fault before an enable is allowed.
+    # The server needs this: the 409 interlock cannot be delegated to a page
+    # the operator can edit in DevTools.
+    joints:
+      - openarm_left_joint1
+      - openarm_left_joint2
+      - openarm_left_joint3
+      - openarm_left_joint4
+      - openarm_left_joint5
+      - openarm_left_joint6
+      - openarm_left_joint7
+  right:
+    # Enable activates exactly ONE. They all claim the same command
+    # interfaces, so activating two would be refused anyway.
+    default_controller: right_joint_trajectory_controller
+
+    # Disable deactivates ALL of these. pnk_bringup spawns the trajectory
+    # controller AND the forward position controller for each arm, and VR
+    # teleop drives the latter — stopping only the trajectory controller
+    # would report success while the arm kept moving.
+    # Switched BEST_EFFORT: whichever ones are already inactive are fine.
+    controllers:
+      - right_joint_trajectory_controller
+      - right_forward_position_controller
+      - right_forward_velocity_controller
+      - right_arm_pid_controller
+
+    # Optional harder stop: also take the hardware interface to 'inactive',
+    # stopping that arm's CAN loop. Empty = controllers only.
+    hardware_components: []
+
+    # Joints checked for a latched fault before an enable is allowed.
+    # The server needs this: the 409 interlock cannot be delegated to a page
+    # the operator can edit in DevTools.
+    joints:
+      - openarm_right_joint1
+      - openarm_right_joint2
+      - openarm_right_joint3
+      - openarm_right_joint4
+      - openarm_right_joint5
+      - openarm_right_joint6
+      - openarm_right_joint7
