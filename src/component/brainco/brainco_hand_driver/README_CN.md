@@ -38,11 +38,12 @@ BrainCo Hand Driver 驱动包为 BrainCo Revo2 灵巧手提供基于 Modbus/CAN 
 
 ### BrainCo Stark SDK
 
-SDK 位于 `vendor/` 目录，可直接使用。如需更新：
+SDK 由 `src/lib/` 下的 `brainco_stark_sdk_vendor` 包在编译时自动下载并安装，无需手动运行。
+如需更换版本：
 
 ```bash
-cd brainco_hardware/brainco_hand_driver
-./scripts/download_sdk.sh
+colcon build --packages-up-to brainco_hand_driver \
+  --cmake-args -DBRAINCO_STARK_SDK_VERSION=v2.0.2
 ```
 
 ### 构建工作空间
@@ -83,8 +84,13 @@ source install/setup.bash
 ```
 
 **编译选项说明：**
-- 默认：`ENABLE_CANFD=OFF`，仅支持 Modbus
+- 默认：`ENABLE_CANFD=OFF`，仅支持 Modbus / SocketCAN
 - 启用 CAN FD：使用 `-DENABLE_CANFD=ON`
+
+> **按现状 CAN FD 无法编译。** 它链接的 ZLG 厂商库已从本仓库移除：仓库里原本只提交了
+> `libusbcanfd.so`，而 CMake 检查同时要求 `libzuds.so`，因此 `-DENABLE_CANFD=ON`
+> 本来就会在 configure 阶段失败。如需 CAN FD，请仿照
+> `src/lib/brainco_stark_sdk_vendor` 新建一个在编译时下载**两个**库的 vendor 包。
 
 **注意：** `brainco_hand_driver` 依赖于 `revo2_description` 包。
 
@@ -475,10 +481,6 @@ brainco_hand_driver/
 │       └── logger_macros.hpp                    # 日志宏定义
 ├── src/                                         # 源文件
 │   └── brainco_hand_hardware.cpp                # 硬件接口实现
-├── scripts/                                     # 工具脚本
-│   └── download_sdk.sh                          # SDK 下载脚本
-├── vendor/                                      # BrainCo Stark SDK
-│   └── dist/                                    # SDK 分发文件
 ├── CMakeLists.txt                               # 构建配置
 ├── package.xml                                  # 功能包描述
 ├── brainco_hand_driver_plugins.xml              # 插件描述

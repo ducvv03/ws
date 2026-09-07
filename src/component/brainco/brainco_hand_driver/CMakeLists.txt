@@ -28,14 +28,17 @@ endif()
 # -----------------------------------------------------------------------------
 # BrainCo Stark SDK 配置
 # SDK 由 brainco_stark_sdk_vendor 包在构建时下载并安装到 colcon install 目录，
-# 不再依赖本包 vendor/ 目录，也不需要预先运行 download_sdk.sh。
+# 不再依赖本包 vendor/ 目录。
 # 该包导出 imported target: brainco_stark_sdk::brainco_stark_sdk
 # -----------------------------------------------------------------------------
 find_package(brainco_stark_sdk_vendor REQUIRED)
 
 # -----------------------------------------------------------------------------
 # ZLG USB-CAN FD 驱动库（可选）
-# 该库随仓库 vendor 目录一同发布，详细请见 https://manual.zlg.cn/web/#/146 
+# 厂商库已不再随本仓库发布：原先只提交了 libusbcanfd.so，而下面的检查同时要求
+# libzuds.so，因此 ENABLE_CANFD=ON 一直就会在 configure 阶段失败。
+# 如需 CAN FD，请仿照 src/lib/brainco_stark_sdk_vendor 建一个在构建时下载
+# 两个库的 vendor 包。详见 https://manual.zlg.cn/web/#/146
 # 仅在 ENABLE_CANFD=ON 时启用
 # -----------------------------------------------------------------------------
 if(ENABLE_CANFD)
@@ -224,7 +227,6 @@ install(FILES
 install(DIRECTORY
   launch      # 启动文件
   config      # 配置文件
-  scripts     # 脚本文件
   DESTINATION share/${PROJECT_NAME}/
   USE_SOURCE_PERMISSIONS  # 保持原始文件权限
 )

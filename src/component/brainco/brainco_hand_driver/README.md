@@ -31,18 +31,19 @@ The BrainCo Hand Driver package provides a ROS2 hardware interface for BrainCo R
 
 ### CAN FD Mode (Optional)
 - ZLG USB-CAN FD device (e.g., USBCANFD-200U)
-- ZLG CAN FD driver library (included with package)
+- ZLG CAN FD driver libraries (`libusbcanfd.so` **and** `libzuds.so`) — **no longer shipped here**, see below
 - CAN FD bus connection
 
 ## Installation and Setup
 
 ### BrainCo Stark SDK
 
-The SDK is located in the `vendor/` directory and can be used directly. To update:
+The SDK is downloaded and installed at build time by the `brainco_stark_sdk_vendor`
+package in `src/lib/`. Nothing to run by hand. To change version:
 
 ```bash
-cd brainco_hardware/brainco_hand_driver
-./scripts/download_sdk.sh
+colcon build --packages-up-to brainco_hand_driver \
+  --cmake-args -DBRAINCO_STARK_SDK_VERSION=v2.0.2
 ```
 
 ### Build the Workspace
@@ -81,8 +82,15 @@ source install/setup.bash
 ```
 
 **Build Options:**
-- Default: `ENABLE_CANFD=OFF`, Modbus only
+- Default: `ENABLE_CANFD=OFF`, Modbus/SocketCAN only
 - Enable CAN FD: Use `-DENABLE_CANFD=ON`
+
+> **CAN FD does not build as shipped.** The ZLG vendor libraries it links
+> against were removed from this repo — only `libusbcanfd.so` had ever been
+> committed, and the CMake check requires `libzuds.so` as well, so
+> `-DENABLE_CANFD=ON` failed at configure time either way. To use CAN FD,
+> add a vendor package that fetches **both** libraries at build time, the way
+> `src/lib/brainco_stark_sdk_vendor` does for the Stark SDK.
 
 **Note:** `brainco_hand_driver` depends on `revo2_description` package.
 
@@ -479,10 +487,6 @@ brainco_hand_driver/
 │       └── logger_macros.hpp                    # Logger macros
 ├── src/                                         # Source files
 │   └── brainco_hand_hardware.cpp                # Hardware interface implementation
-├── scripts/                                     # Utility scripts
-│   └── download_sdk.sh                          # SDK download script
-├── vendor/                                      # BrainCo Stark SDK
-│   └── dist/                                    # SDK distribution files
 ├── CMakeLists.txt                               # Build configuration
 ├── package.xml                                  # Package description
 ├── brainco_hand_driver_plugins.xml              # Plugin description
