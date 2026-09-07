@@ -4,7 +4,7 @@
 # sessions you run side by side: this one holds every pane whose main command is only typed in,
 # waiting for you to press Enter yourself, in its own 4-pane window:
 #
-#   pane 0 (ssh JetsonAGX@10.87.25.239, ~/pnk/ws) -> ros2 launch openarm_bringup ... (bimanual bringup, typed, NOT auto-run)
+#   pane 0 (ssh JetsonAGX@10.87.25.239, ~/pnk/ws) -> ros2 launch pnk_bringup ... (bimanual bringup, typed, NOT auto-run)
 #   pane 1 (~/pnk/ws/dora-openarm-ros2, local)    -> venv setup (auto) + uv run dora run ... (VR bridge, typed, NOT auto-run)
 #   pane 2 (ssh JetsonAGX@10.87.25.239, ~/data)   -> ros2 bag record ... (typed, NOT auto-run)
 #   pane 3 (local, transrecv_udp)                 -> VR connect client (typed, NOT auto-run)
@@ -60,7 +60,7 @@ tmux send-keys -t "$SESSION:0.0" \
 tmux send-keys -t "$SESSION:0.0" \
   'cd ~/pnk/ws' C-m
 tmux send-keys -t "$SESSION:0.0" \
-  'ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1 use_fake_hand:=true'
+  'ros2 launch pnk_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1 use_fake_hand:=true'
 
 # Pane 1 (local, unchanged): set up the venv (auto-starts), then leave the Dora ROS2<->VR bridge
 # command typed but deliberately NOT submitted.

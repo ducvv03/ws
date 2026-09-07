@@ -45,7 +45,7 @@ bash ~/pnk/ws/scripts/record_session_tmux.sh
 Lệnh này tự mở ra 6 khung màn hình (pane) chia sẵn:
 
 - **Pane cánh tay (CAN)**: tự chạy lệnh cấu hình cả 2 CAN (`can_configure`) ngay khi mở, sau đó
-  **gõ sẵn nhưng chưa chạy** lệnh `ros2 launch openarm_bringup ...` (bringup thật, không dùng
+  **gõ sẵn nhưng chưa chạy** lệnh `ros2 launch pnk_bringup ...` (bringup thật, không dùng
   fake hardware) — chờ xác nhận ở Bước 2 rồi mới bấm Enter.
 - **Pane cầu nối VR (Dora bridge)**: lệnh `uv run dora run ...` — **đã gõ sẵn nhưng chưa chạy**,
   chờ xác nhận ở Bước 2.
@@ -56,7 +56,7 @@ Lệnh này tự mở ra 6 khung màn hình (pane) chia sẵn:
 
 > **Lưu ý**: nếu khi script gõ lệnh bringup vào pane cánh tay mà đúng lúc đó terminal đang chờ
 > nhập mật khẩu `sudo` cho `can_configure`, dòng lệnh gõ sẵn có thể bị "nuốt" mất. Nếu vào pane
-> cánh tay mà không thấy dòng lệnh `ros2 launch openarm_bringup ...` đã gõ sẵn, chỉ cần gõ lại.
+> cánh tay mà không thấy dòng lệnh `ros2 launch pnk_bringup ...` đã gõ sẵn, chỉ cần gõ lại.
 
 [ẢNH: màn hình tmux với 6 pane vừa mở]
 

@@ -2,7 +2,7 @@
 # Sim-mode counterpart to record_session_tmux.sh — opens a 3-terminal OpenArm Revo2
 # fake-hardware session as one tmux window with 3 tiled panes:
 #
-#   pane 0 (~/pnk/ws)                   -> ros2 launch openarm_bringup ... use_fake_hardware:=true (auto-start)
+#   pane 0 (~/pnk/ws)                   -> ros2 launch pnk_bringup ... use_fake_hardware:=true (auto-start)
 #   pane 1 (~/pnk/ws/dora-openarm-ros2) -> venv setup (auto) + uv run dora run ... _sim.yaml (VR bridge, typed, NOT auto-run)
 #   pane 2 (~/pnk/ws)                   -> ros2 bag record ... (typed, NOT auto-run)
 #
@@ -38,7 +38,7 @@ tmux select-layout -t "$SESSION:0" tiled
 
 # Pane 0: fake-hardware bimanual bringup (auto-starts — no real CAN/motors involved).
 tmux send-keys -t "$SESSION:0.0" \
-  'ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=true use_fake_hand:=true' C-m
+  'ros2 launch pnk_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=true use_fake_hand:=true' C-m
 
 # Pane 1: set up the venv (auto-starts), then leave the Dora ROS2<->VR bridge (sim dataflow)
 # command typed but deliberately NOT submitted.

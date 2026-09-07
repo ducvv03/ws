@@ -3,7 +3,7 @@
 Variables that can be set at launch:
 
 ```bash
-ros2 launch openarm_bringup openarm.bimanual.launch.py <arg>:=<value> ...
+ros2 launch pnk_bringup openarm.bimanual.launch.py <arg>:=<value> ...
 ```
 
 | Argument | Default | Choices | Description |
@@ -27,7 +27,7 @@ ros2 launch openarm_bringup openarm.bimanual.launch.py <arg>:=<value> ...
 | `head_vertical_can_id` | `0x22` | — | CAN id of the vertical head motor (decimal or 0x-hex). |
 | `head_horizontal_can_id` | `0x23` | — | CAN id of the horizontal head motor (decimal or 0x-hex). |
 | `robot_controller` | `joint_trajectory_controller` | `forward_position_controller`, `joint_trajectory_controller` | Arm controller to start. |
-| `runtime_config_package` | `openarm_bringup` | — | Package holding the controller config folder. |
+| `runtime_config_package` | `pnk_bringup` | — | Package holding the controller config folder. |
 | `controllers_file` | `openarm_bimanual_controllers.yaml` | — | Controllers config file (also contains the head controller). |
 | `arm_prefix` | `""` (empty) | — | Namespace prefix for topics. Empty = no namespace (`/controller_manager`). |
 | `use_payload_compensation` | `false` | `true` / `false` | Spawn `left/right_arm_pid_controller` (integral torque on top of gravity compensation). Needs a `control_msgs/MultiDOFCommand` publisher on `<arm>_arm_pid_controller/reference`. |

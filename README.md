@@ -2,11 +2,11 @@ sudo openarm-can-cli -i can0 can_configure
 sudo openarm-can-cli -i can1 can_configure
 
 cd ~/openarm_ros2_ws
-ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1 use_fake_hand:=true
-ros2 launch openarm_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=true use_fake_hand:=true 
+ros2 launch pnk_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1 use_fake_hand:=true
+ros2 launch pnk_bringup openarm.bimanual.launch.py arm_type:=v10 use_fake_hardware:=true use_fake_hand:=true 
 
 
-ros2 launch openarm_bimanual_moveit_config move_group.launch.py
+ros2 launch pnk_moveit_config move_group.launch.py
 
 cd ~/pnk/pnk_ws
 python3 src/openarm_motion_planning/scripts/demo4.py
@@ -37,7 +37,7 @@ uv run dora build config/dataflow_bridge_ros2_vr.yaml
 uv run dora run config/dataflow_bridge_ros2_vr.yaml --uv
 
 
-[//]: # (ros2 launch openarm_bringup openarm_vr.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1)
+[//]: # (ros2 launch pnk_bringup openarm_vr.bimanual.launch.py arm_type:=v10 use_fake_hardware:=false right_can_interface:=can0 left_can_interface:=can1)
 
 [//]: # ()
 [//]: # (cd ~/pnk/pnk_ws)

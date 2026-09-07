@@ -1,0 +1,36 @@
+# Defines an imported target for the installed BrainCo Stark SDK, so consumers
+# write `target_link_libraries(mine brainco_stark_sdk::brainco_stark_sdk)` and
+# never repeat a path into anyone's source tree.
+#
+# Loaded automatically by find_package(brainco_stark_sdk_vendor).
+
+if(NOT TARGET brainco_stark_sdk::brainco_stark_sdk)
+  # ${brainco_stark_sdk_vendor_DIR} is <prefix>/share/brainco_stark_sdk_vendor/cmake
+  get_filename_component(_bc_sdk_prefix
+    "${brainco_stark_sdk_vendor_DIR}/../../.." ABSOLUTE)
+
+  set(_bc_sdk_include "${_bc_sdk_prefix}/include/brainco_stark_sdk_vendor")
+
+  find_library(_bc_sdk_library
+    NAMES bc_stark_sdk
+    PATHS "${_bc_sdk_prefix}/lib"
+    NO_DEFAULT_PATH)
+
+  if(NOT _bc_sdk_library)
+    message(FATAL_ERROR
+      "brainco_stark_sdk_vendor: libbc_stark_sdk not found under "
+      "'${_bc_sdk_prefix}/lib'. Rebuild brainco_stark_sdk_vendor.")
+  endif()
+  if(NOT EXISTS "${_bc_sdk_include}/stark-sdk.h")
+    message(FATAL_ERROR
+      "brainco_stark_sdk_vendor: stark-sdk.h not found under '${_bc_sdk_include}'. "
+      "Rebuild brainco_stark_sdk_vendor.")
+  endif()
+
+  add_library(brainco_stark_sdk::brainco_stark_sdk SHARED IMPORTED)
+  set_target_properties(brainco_stark_sdk::brainco_stark_sdk PROPERTIES
+    IMPORTED_LOCATION "${_bc_sdk_library}"
+    INTERFACE_INCLUDE_DIRECTORIES "${_bc_sdk_include}")
+
+  message(STATUS "brainco_stark_sdk_vendor: using ${_bc_sdk_library}")
+endif()

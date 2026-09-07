@@ -1,0 +1,138 @@
+# Copyright 2025 Enactic, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+cmake_minimum_required(VERSION 3.22)
+project(openarm_hardware)
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+# find dependencies
+find_package(ament_cmake REQUIRED)
+find_package(hardware_interface REQUIRED)
+find_package(pluginlib REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
+find_package(Eigen3 REQUIRED)
+find_package(kdl_parser REQUIRED)
+find_package(orocos_kdl REQUIRED)
+find_package(urdf REQUIRED)
+find_package(ament_index_cpp REQUIRED)
+find_package(control_msgs REQUIRED)
+
+# Find openarm_can library
+find_package(OpenArmCAN REQUIRED)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/openarm_teleop  openarm_teleop_lib)
+add_library(${PROJECT_NAME} SHARED
+  src/openarm_simple_hardware.cpp
+)
+
+target_link_libraries(${PROJECT_NAME} openarm_teleop_lib)
+# add lib for teleop 
+add_library(openarm_tele_to_sim SHARED
+  src/openarm_teleop.cpp
+  src/openarm_simple_hardware.cpp
+)
+target_link_libraries(openarm_tele_to_sim openarm_teleop_lib)
+
+target_include_directories(
+  ${PROJECT_NAME}
+  PRIVATE
+  include
+  openarm_teleop/src
+  openarm_teleop/src/controller
+  openarm_teleop/src/openarm_port
+)
+
+target_include_directories(openarm_tele_to_sim
+  PRIVATE
+  include
+  openarm_teleop/src
+  openarm_teleop/src/controller
+  openarm_teleop/src/openarm_port
+
+)
+
+target_link_libraries(openarm_hardware
+  Eigen3::Eigen
+)
+
+target_link_libraries(${PROJECT_NAME}
+  OpenArmCAN::openarm_can
+)
+
+target_link_libraries(openarm_tele_to_sim
+  Eigen3::Eigen
+  OpenArmCAN::openarm_can
+)
+
+# Debug symbols + export dynamic symbols so crash backtraces show function names.
+target_compile_options(openarm_tele_to_sim PRIVATE -g)
+target_link_options(openarm_tele_to_sim PRIVATE -rdynamic)
+
+ament_target_dependencies(${PROJECT_NAME}
+  hardware_interface
+  pluginlib
+  rclcpp
+  control_msgs
+  urdf
+  rclcpp_lifecycle
+  kdl_parser
+  orocos_kdl
+)
+
+ament_target_dependencies(openarm_tele_to_sim
+  hardware_interface
+  pluginlib
+  rclcpp
+  urdf
+  rclcpp_lifecycle
+  kdl_parser
+  orocos_kdl
+  ament_index_cpp
+)
+
+pluginlib_export_plugin_description_file(hardware_interface openarm_hardware.xml)
+pluginlib_export_plugin_description_file(hardware_interface openarm_teleop.xml)
+
+install(
+  TARGETS ${PROJECT_NAME} openarm_tele_to_sim
+  DESTINATION lib
+  )
+
+install(DIRECTORY include/
+DESTINATION include
+)
+
+install(DIRECTORY openarm_teleop/config
+  DESTINATION share/${PROJECT_NAME}
+)
+
+ament_export_include_directories(
+  include
+)
+
+ament_export_libraries(
+  ${PROJECT_NAME}
+  openarm_tele_to_sim
+)
+ament_export_dependencies(
+  hardware_interface
+  openarm_can
+  pluginlib
+  rclcpp
+)
+
+ament_package()
